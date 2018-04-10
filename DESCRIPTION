@@ -1,0 +1,26 @@
+Package: WeMix
+Version: 1.0.2
+Date: 2018-04-06
+Title: Weighted Mixed-Effects Models, using Multilevel Pseudo Maximum
+        Likelihood Estimation
+Author: Paul Bailey, Claire Kelley, Trang Nguyen, Huade Huo. 
+Maintainer: Claire Kelley <ckelley@air.org>
+Depends: lme4, R (>= 3.2.0)
+Imports: numDeriv, minqa, statmod, Rmpfr, MASS, NPflow, Rcpp
+Suggests: testthat, knitr, rmarkdown, EdSurvey
+Description: Run mixed-effects models that include weights at every level. The 'WeMix' package fits a Weighted Mixed model, also known as a multilevel, mixed, or hierarchical linear models. The weights could be inverse selection probabilities, such as those developed for an education survey where schools are sampled probabilistically, and then students inside of those schools are sampled probabilistically. Although mixed-effects models are already available in 'R', 'WeMix' is unique in implementing methods for mixed models using weights at multiple levels. The model is fit using adaptive quadrature following the methodology of Rabe-Hesketh, S., and Skrondal, A. (2006) <doi:10.1111/j.1467-985X.2006.00426.x>.
+LinkingTo: Rcpp, RcppArmadillo
+License: GPL-2
+VignetteBuilder: knitr
+LazyData: true
+ByteCompile: true
+Note: This publication was prepared for NCES under Contract No.
+        ED-IES-12-D-0002 with American Institutes for Research. Mention
+        of trade names, commercial products, or organizations does not
+        imply endorsement by the U.S. government.
+RoxygenNote: 6.0.1
+Encoding: UTF-8
+NeedsCompilation: yes
+Packaged: 2018-04-09 12:48:31 UTC; ckelley
+Repository: CRAN
+Date/Publication: 2018-04-10 09:56:34 UTC
