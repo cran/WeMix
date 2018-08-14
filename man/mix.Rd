@@ -5,10 +5,11 @@
 \title{Survey Weighted Mixed-Effects Models}
 \usage{
 mix(formula, data, weights, nQuad = 13L, run = TRUE, verbose = TRUE,
-  acc0 = 120, keepAdapting = FALSE, start = NULL, fast = FALSE)
+  acc0 = 120, keepAdapting = FALSE, start = NULL, fast = FALSE,
+  family = NULL, center_group = NULL, center_grand = NULL)
 }
 \arguments{
-\item{formula}{a formula object in the style of lme4 that creates the model.}
+\item{formula}{a formula object in the style of \code{lme4} that creates the model.}
 
 \item{data}{a data frame containing the raw data for the model.}
 
@@ -16,64 +17,90 @@ mix(formula, data, weights, nQuad = 13L, run = TRUE, verbose = TRUE,
 
 \item{nQuad}{an integer  number of quadrature point to evaluate on. See notes for guidelines.}
 
-\item{run}{logical, true runs the model, false provides partial output for debug or testing.}
+\item{run}{logical; \code{TRUE} runs the model why \code{FALSE} provides partial output for debugging or testing.}
 
-\item{verbose}{boolean, default False, set to TRUE to print results of intermediate steps}
+\item{verbose}{logical, default \code{FALSE}; set to \code{TRUE} to print results of intermediate steps}
 
-\item{acc0}{integer, the precision of mpfr, default 120}
+\item{acc0}{integer, the precision of \code{mpfr}, default 120}
 
-\item{keepAdapting}{logical, set to TRUE when the adaptive quadrature should adapt after every Newton step. Defaults to TRUE. 
-False should be used rarely for faster (but less accurate) results.}
+\item{keepAdapting}{logical, set to \code{TRUE} when the adaptive quadrature should adapt after every Newton step. Defaults to TRUE. 
+\code{FALS}E should be used rarely for faster (but less accurate) results.}
 
 \item{start}{numeric vector representing the point at which the model should start optimization; takes the shape of c(coef, vars) 
 from results (see help).}
 
-\item{fast}{logical, use  c++ function for faster result. Defaults to True.}
+\item{fast}{logical; use  c++ function for faster result. Defaults to \code{TRUE}.}
+
+\item{family}{the family; optionally used to specify generalized linear mixed models. Currently only \code{binomial(link="logit")} is supported.}
+
+\item{center_group}{a list where the name of each element is the name of the aggregation level, and the element is a formula of
+variable names to be group mean centered, for example to group mean center gender and age with in the group student:
+ \code{list("student"= ~gender+age)}, default value of NULL does not perform any group mean centering.}
+
+\item{center_grand}{a formula of variable names  to be grand mean centered, for example to center the variable education by overall mean of 
+education: \code{~education}. Default is NULL which does no 
+centering}
 }
 \value{
-object of class WeMixResults
+object of class \code{WeMixResults}. 
 This is a list with objects: 
-lnlf - function, the likelihood function 
-lnl - numeric, the logliklihood of the model 
-coef - numeric vector, the estimated coefficients of the model 
-vars- numeric vector, the variances
-call - the original call used 
-levels - integer, the number of levels in the model 
-ICC - numeric, the Intraclass Correlation Coefficient 
-CMEAN  - function the conditional mode function that can be called with par and omega to get the conditional mode of the likelihood function
-CMODE - function the conditional mean function that can be called with par and omega to get the conditional mean of the likelihood function
-Hessian - the second derivative of the likelihood function
+\itemize{
+\item lnlf - function, the likelihood function 
+\item lnl - numeric, the logliklihood of the model 
+\item coef - numeric vector, the estimated coefficients of the model 
+\item vars- numeric vector, the variances
+\item call - the original call used 
+\item levels - integer, the number of levels in the model 
+\item ICC - numeric, the Intraclass Correlation Coefficient 
+\item CMEAN  - function the conditional mode function that can be called with par and omega to get the conditional mode of the likelihood function
+\item CMODE - function the conditional mean function that can be called with par and omega to get the conditional mean of the likelihood function
+\item Hessian - the second derivative of the likelihood function
+}
 }
 \description{
 Implements a survey weighted mixed-effects model using the provided formula.
 }
 \details{
-Uses adaptive quadrature following the method in Statas's GLAMMM. For additional details, see main vignette 
-"WeightedMixedModels.pdf"  which provides extensive examples as well as a description of the mathematical 
+Uses adaptive quadrature following the method in Stata's GLAMMM. For additional details, see the vignette 
+\emph{Weighted Mixed Models}  which provides extensive examples as well as a description of the mathematical 
 basis of the estimation procedure. The main specification also shows comparisons to model specifications in other
 common software. 
 
 Notes: 
 \itemize{
-\item Standard errors of random effect variances are estimated by the Sandwich Method, see main vingette for details. 
-\item To see the function that is maximized in the estimation of this model see the section on "Model fitting" in the main vingette.
-\item When all weights above the individual level are one, this is similar to a lmer and you should use lme4 because it is much faster.
-\item Starting coefficients are not provided they are estimated using lme4. 
-\item When the variance of a random effect is very low (<.1) we don't estimate it because very low variances create problems with  numerical evaluation.
- In these cases, consider re estimating without that RE.
- \item The model is estimated by maximum likelihood estimation, restricted maximum liklihood (REML) is not available 
-\item To chose number of quadrature points a balance is needed between accuracy and speed- estimation time increases quadratically 
-with the number of points chosen. Additionaly an odd number of points is traditionaly used. We recommend starting at 13 and increasing 
+\item Standard errors of random effect variances are estimated by the Sandwich Method; see main vignette for details. 
+\item To see the function that is maximized in the estimation of this model; see the section on "Model fitting" in the main vignette.
+\item When all weights above the individual level are 1, this is similar to a \code{lmer} and you should use \code{lme4} because it is much faster.
+\item Starting coefficients are not provided they are estimated using \code{lme4}. 
+\item When the variance of a random effect is very low (<.1), we don't estimate it because very low variances create problems with  numerical evaluation.
+ In these cases, consider estimating without that RE.
+ \item The model is estimated by maximum likelihood estimation, restricted maximum likelihood (REML) is not available. 
+\item To choose number of quadrature points, a balance is needed between accuracy and speed- estimation time increases quadratically 
+with the number of points chosen. In addition, an odd number of points is traditionally used. We recommend starting at 13 and increasing 
 or decreasing as needed. 
 }
 }
 \examples{
+\dontrun{
 library(WeMix)
-library(EdSurvey)
-naep <- readNAEP(system.file("extdata/data", "M36NT2PM.dat", package="NAEPprimer"))
-naepData <- getData(naep,varnames=c("lep","origwt","smsrswt","scrpsu","dsex","mrpcm1"))[1:200,]
-me1 <- mix(mrpcm1 ~  lep+ dsex + (1|scrpsu), data=naepData, 
-   weights=c("origwt", "smsrswt"), nQuad=7, verbose=FALSE, fast=TRUE,run=TRUE)
+library(lme4)
+
+data(sleepstudy)
+ss1 <- sleepstudy
+doubles <- c(308, 309, 310) # subject with double obs
+# Create weights
+ss1$W1 <- ifelse(ss1$Subject \%in\% doubles, 2, 1)
+ss1$W2 <- 1
+
+# Run random-intercept 2-level model 
+mix1 <- mix(Reaction~ Days + (1|Subject),data=ss1, weights = c("W1","W2"),
+            fast=TRUE, nQuad=13, verbose=FALSE)
+
+# Run random-intercept 2-level model with group-mean centering
+grp_centered <- mix(Reaction ~ Days + (1|Subject), data=ss1, weights = c("W1","W2"), nQuad=13,
+          fast=TRUE, center_group = list("Subject" = ~Days),
+          verbose=FALSE)
+}
 }
 \author{
 Paul Bailey, Claire Kelley, and Trang Nguyen

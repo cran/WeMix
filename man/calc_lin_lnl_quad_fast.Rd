@@ -6,8 +6,8 @@
 \usage{
 calc_lin_lnl_quad_fast(y, yhat, level, Z, Qi, omega, W, C, qp, omegaFull,
   QiFull, ZFull, top = TRUE, atPoint = FALSE,
-  integralMultiplierExponent = 0L, integralZColumn = 1L, verbose = TRUE,
-  acc = 120L)
+  integralMultiplierExponent = 0L, integralZColumn = 1L,
+  verbose = TRUE, acc = 120L)
 }
 \arguments{
 \item{y}{a numeric vector, the response.}

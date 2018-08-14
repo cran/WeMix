@@ -1,22 +1,29 @@
 ---
-title: 'Introduction to Weighted Mixed Models With WeMix'
-author: Developed by Paul Bailey, Claire Kelley, and Trang Nguyen \footnote{This publication was prepared for NCES (National Center for Education Statistics) under Contract No. ED-IES-12-D-0002 with American Institutes for Research. Mention of trade names, commercial products, or organizations does not imply endorsement by the U.S. government.} \footnote{The authors would like to thank Mike Cohen  and Dan Sherman for reviewing this document, and Yuqi Liao and Bitnara Park for their help with use of mixed models in other software packages.}
-date: '`r format(Sys.Date(),"%B %d, %Y")`'
-header-includes:
-  - \usepackage{color, colortbl}
-  - \usepackage{graphicx}
-  - \graphicspath{ {images/} }
-  - \usepackage{bm}
-  - \usepackage{amsmath} 
-  - \usepackage[utf8]{inputenc}
+title: "Introduction to Weighted Mixed Models With WeMix"
+author: Developed by Paul Bailey, Claire Kelley, and Trang Nguyen \footnote{This publication
+  was prepared for NCES (National Center for Education Statistics) under Contract
+  No. ED-IES-12-D-0002 with American Institutes for Research. Mention of trade names,
+  commercial products, or organizations does not imply endorsement by the U.S. government.}
+  \footnote{The authors would like to thank Mike Cohen  and Dan Sherman for reviewing
+  this document, and Yuqi Liao and Bitnara Park for their help with use of mixed models
+  in other software packages.}
+date: "August 10, 2018"
 output:
   pdf_document:
     fig_caption: yes
     number_sections: no
+header-includes:
+- \usepackage{color, colortbl}
+- \usepackage{graphicx}
+- \usepackage{bm}
+- \usepackage{amsmath}
+- \usepackage{amsfonts}
+- \usepackage[utf8]{inputenc}
 vignette: >
   %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteIndexEntry{WeMix Vignettes}
+  %\VignetteIndexEntry{Using WeMix}
 ---
+
 # Introduction
 
 The \texttt{WeMix} package fits a \texttt{\textbf{We}}ighted \texttt{\textbf{Mix}}ed model, also known as a multilevel, mixed, or hierarchical linear model (HLM). The weights could be inverse selection probabilities, such as those developed for an education survey where schools are sampled probabilistically, and then students inside of those schools are sampled probabilistically. Although mixed-effects models are already available in R, \texttt{WeMix} is unique in implementing methods for mixed models using weights at multiple levels.
@@ -69,7 +76,7 @@ The WeMix call for this model, using a `data.frame` containing the PISA 2012 dat
 mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid), data=data, 
     weights=c("pwt1", "pwt2"), nQuad=27, verbose=FALSE, fast=TRUE,run=TRUE)
 
-# model with two random effects
+# model with two random effects assuming zero correlation between the two
 mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid)+ (0+escs|schoolid), data=data, 
     weights=c("pwt1", "pwt2"), nQuad=13, verbose=FALSE, fast=TRUE,run=TRUE)
 ```
@@ -243,6 +250,8 @@ When there are more than two levels, eq. \ref{eq:basic} can be rewritten as
 \end{equation}
 where a superscript $(l)$ is added to $\bm{Z}$ and $\bm{u}$ to indicate that they are at the $l$th level. Note: In the summation above, $l$ starts at $l=2$ because there cannot be random effects at the lowest level of observation ($l=1$).
 
+Note that \texttt{WeMix 2.0} does not support three or more levels. Three-level model fitting will be added to the future \texttt{WeMix 3.0}.
+
 
 \begin{table}[htb]
 \caption{Notation}
@@ -392,8 +401,69 @@ where $n_{L-1}$ represents the number of observations in the $(L-1)^{th}$ level 
 
 Here, the derivative of the likelihood function is calcuated numerically and evaluated at the maximum likelihood point estimates. 
 
+# Hierarchical Generalized Linear Models
+If data comes in nested strucutre and the assumptions of linearity and normality cannot be met even after applying transformations, Hierarchical Generalized Linear Models (HGLM) offer a possible solution. There are three components of a HGLM model: a sampling model, a link function, and a structural model (Raudenbush  & Bryk, 2002). Currently \texttt{WeMix 2.0} supports two models: Gaussian (or normal) sampling model with identity link function (the default), and Binomial sampling model with logit link function (for binary outcomes.) Different models can be specified using `family` argument in `mix` function. Note that the first model (Gaussian with identity link) is the default so there is no need to specify `family` argument. 
 
-# Weight adjustments
+## Binomial With Logit Link Function
+This model is used when the data has binary outcomes (i.e. the number of successes in *m* trials). Here is an example code using **sleepstudy** dataset in \texttt{lme4} package:
+
+```{r eval=FALSE}
+library(lme4)
+library(WeMix)
+ss1 <- sleepstudy
+doubles <- c(308, 309, 310) # subject with double obs
+
+# Create weights
+ss1$W1 <- ifelse(ss1$Subject %in% doubles, 2, 1)
+ss1$W2 <- 1
+
+# Create binary outcome variable called "over300"
+ss1$over300 <- ifelse(sleepstudy$Reaction<300,0,1) 
+
+# Run mixed model with random intercept and fixed slope
+bi_1 <- mix(over300~ Days + (1|Subject),data=ss1,
+            family=binomial(link="logit"),verbose=FALSE,
+            weights=c("W1", "W2"),nQuad=13)
+
+```
+
+Table 3 shows the output comparison between \texttt{WeMix} and STATA \texttt{GLLAMM}.
+
+\definecolor{header}{rgb}{0.52,.44,1}
+\begin{tabular}{|p{5cm}|r|r|} 
+\hline 
+\rowcolor{header}
+\multicolumn{3}{|c|}{\bf{Table 3: Results for Binomial Model with Logit Link} }\\
+\hline 
+\rowcolor{header}
+& WeMix & Stata: GLLAMM   \\
+\hline 
+Log-Likelihood & -93.75179  & 93.751679\\ 
+\hline 
+\rowcolor{header}
+\multicolumn{3}{|c|}{\bf{Random Effects} }\\
+\hline 
+Var Random Intercept & 4.127208 & 4.1335015 \\ 
+\hline 
+\rowcolor{header}
+\multicolumn{3}{|c|}{\bf{Standard Error (SE) of Random Effects}} \\
+SE Random Intercept & 2.966179 & 2.9815704 \\ 
+\rowcolor{header}
+\multicolumn{3}{|c|}{\bf{Fixed Effects}} \\
+\hline 
+(Intercept)   & -3.34411 & -3.344987   \\
+Days        & 0.59271 &  .5928508      \\
+\hline
+\rowcolor{header}
+\multicolumn{3}{|c|}{\bf{Standard Error of Fixed Effects}} \\
+\hline 
+SE (Intercept)    & 0.92390 & .9250737  \\
+SE Days       & 0.12429 & .1244216  \\
+\hline
+\end{tabular}
+
+
+# Weight Adjustments
 
 \texttt{WeMix} assumes that the weights are already scaled. However, for informational purposes, we describe here two common methods of scaling.
 
@@ -411,6 +481,48 @@ w^{*}_{ij} = w_{ij}\left(\frac{\sum_iw_{ij}}{\sum_iw_{ij}^2} \right )
 \end{equation}
 
 These $w^*$ are then used to scale the likelihood function. 
+
+# Centering
+\texttt{WeMix 2.0} allows users to incorporate grand- or group-mean centering when fitting mixed-effects models. In the group-mean centered model, the predictors are centered around the group-level mean. Compared to Equation (2), the model can be expressed as follows:
+\begin{equation} 
+y_{ij} = \beta_{0j} + \beta_{1j}(X_{ij} - \overline{X_{.j}})  + \epsilon_{ij} \ ,
+\end{equation}
+and the intercept can be interpreted as the unadjusted mean for group *j*:
+\begin{equation}
+\beta_{0j} = \mu_{Y_{j}} \
+\end{equation}
+
+In the grand-mean centered model, the predictors are centered around the overall mean so the model can be written as follows:
+\begin{equation} 
+y_{ij} = \beta_{0j} + \beta_{1j}(X_{ij} - \overline{X_{..}})  + \epsilon_{ij} \ ,
+\end{equation}
+and the intercept can be interpreted as the adjusted mean for group *j*:
+\begin{equation}
+\beta_{0j} = \mu_{Y_{j}} - \beta_{1j}(X_{ij} - \overline{X_{..}}) \ 
+\end{equation}
+
+There are two main advantages of centering the predictors. First of all, centering makes estimates of level-1 coefficients ($\beta_{0j}$) and other effects easier to interpret because it decomposes the relationship between predictors and outcome into within-group and between-group components. Second, it removes high correlations between the random intercept and slopes, as well as high correlations between first- and second-level predictors and cross-level interactions (Kreft & de Leeuw, 1998).
+
+The following example shows how to implement group or grand mean centering.
+
+```{r Centering, eval=FALSE}
+library(lme4)  #to use example sleep study data
+
+#create dummy weights
+sleepstudy$weight1L1 <- 1
+sleepstudy$weight1L2 <- 1
+
+# Group mean centering of the variable Days within group Subject 
+group_center <- mix(Reaction ~ Days + (1|Subject), data=sleepstudy, 
+                    center_group=list("Subject"= ~Days),
+                    weights=c("weight1L1", "weight1L2"), nQuad=13, 
+                    verbose=FALSE, fast=TRUE,run=TRUE)
+
+# Grand mean centering of the variable Days
+grand_center <- mix(Reaction ~ Days + (1|Subject), data=sleepstudy, 
+                    center_grand=~Days,weights=c("weight1L1", "weight1L2"), 
+                    nQuad=13, verbose=FALSE, fast=TRUE,run=TRUE)
+```
 
 
 # Appendix: Alternative Software Specifications
@@ -494,11 +606,11 @@ run;
 ## HLM
 HLM is another software package for estimated mixed-effects models (Raudenbush, Bryk, Cheong,  Congdon, & Toit, 2016). It is important to note that HLM has two differences from the methods specified in other softwares. HLM normalizes all weights (which other programs do not) and also does not allow the correlation between slope and random effect to be fixed at 0. Using the "Diagonalize Tau" option reduces covariance, but does not fix it at 0 (Raudenbush et al., 2016). In addition, HLM is entirely graphical user interface (GUI) based. Specification of the HLM model for comparison here was done through the interface. The random intercept model was specified as: 
 
-\includegraphics[height=7cm]{hlm1}
+\includegraphics[height=7cm]{images/hlm1}
 
 And the random slope and intercept model was specified as: 
 
-\includegraphics[height=7cm]{hlm2}
+\includegraphics[height=7cm]{images/hlm2}
 
 Note: The specifications for the random intercept model and the random slope model are extremely similar; in the second image for  $\beta_1$, the $u_1$ is highlighted. This is how users in HLM add random effects. 
 
@@ -507,10 +619,10 @@ Note: The specifications for the random intercept model and the random slope mod
 Data are read in using the \texttt{EdSurvey} package to access the PISA data efficiently. 
 
 ```{r data_prep, eval=FALSE}
-library(edsurvey)
+library(EdSurvey)
 
 #read in data 
-cntl = readPISA([path], countries = "USA")
+cntl <- readPISA([path], countries = "USA")
 om <- getAttributes(cntl, "omittedLevels")
 data <- getData(cntl, c("schoolid","pv1math","st29q03","sc14q02","st04q01","escs","w_fschwt","w_fstuwt"), omittedLevels = FALSE, addAttributes = FALSE)
  
@@ -542,6 +654,8 @@ Carle, A. C. (2009). Fitting multilevel models in complex survey data with desig
 
 Hartzel, J., Agresti, A., & Caffo, B. (2001). Multinomial logit random effects models. Statistical Modelling:
 An International Journal, 1(2), 81-102.
+
+Kreft, I. G., & de Leeuw, J. (1998). Introducing Statistical Methods: Introducing multilevel modeling. London, : SAGE Publications Ltd.
 
 Liu, Q., & Pierce, D. A. (1994). A note on Gauss-Hermite quadrature. Biometrika, 81(3), 624.
 

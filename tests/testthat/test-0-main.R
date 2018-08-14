@@ -1,10 +1,8 @@
-require(WeMix)
 require(testthat)
 
 # for sleepstudy, calls in here to lmer
 library(lme4)
 # for grad function
-library(numDeriv)
 
 options(width = 500)
 options(useFancyQuotes = FALSE)
@@ -17,25 +15,26 @@ sleepstudyU <- sleepstudy
 sleepstudyU$weight1L1 <- 1
 sleepstudyU$weight1L2 <- 1
 
+
 context("model runs")
-test_that("lnl agrees with lme4 1", {
-  
+test_that("mix agrees with lme4 1", {
+
   system.time(wm0 <- mix(Reaction ~ Days + (1|Subject), data=sleepstudyU, weights=c("weight1L1", "weight1L2"), nQuad=13, verbose=FALSE, fast=TRUE,run=TRUE))
   wm1 <- mix(Reaction ~ Days + (1|Subject), data=sleepstudyU, weights=c("weight1L1", "weight1L2"), nQuad=13, verbose=FALSE, run=FALSE)
   expect_equal(wm0$lnl, -897.039321502613, tolerance=tolerance*897) # value from  lmer(Reaction ~ Days + (1 | Subject), data=sleepstudy, REML=FALSE)
-  
+
   expect_equal(unname(c(wm0$coef, wm0$vars)), unname(wm1$parlme), tolerance=tolerance*wm1$parlme)
   # agrees with lme4
   # check coef
   lme1 <- lmer(Reaction ~ Days + (1|Subject), data=sleepstudy, REML=FALSE)
   expect_equal(coef(wm0),
                expected = getME(lme1, "fixef"),
-               tolerance = tolerance * coef(wm0))  
+               tolerance = tolerance * coef(wm0))
   # check vars
   lmevars1 <- data.frame(summary(lme1)$varcor)$sdcor
   expect_equal(unname(wm0$vars),
                expected = unname(lmevars1)^2,
-               tolerance = tolerance * wm0$vars)  
+               tolerance = tolerance * wm0$vars)
   # agrees with GLLAMM
   #source: logit_command.do
   gllamm_model1 <- c("(Intercept)" = 251.4051,
@@ -68,10 +67,10 @@ test_that("agrees with lme4 3", {
   expect_equal(wm2$lnlf(wm2$parlme), as.numeric(logLik(lme2)), tol=1E-7*abs(as.numeric(logLik(lme2))))
   system.time(grad <- grad(wm2$lnlf,wm2$parlme))
   expect_equal(grad, rep(0, length(wm2$parlme)), tolerance=1E-5)
-  
+
   #test actal values on data subset for speed
   ss_sample <- sleepstudyU[row.names(sleepstudy) %in% seq(1,60),]
-  
+
   lme2Sample <- lmer(Reaction ~ Days + (1 | Subject) + (0 + Days | Subject), data=ss_sample, REML=FALSE)
   wm2Sample <- mix(Reaction ~ Days + (1 | Subject) + (0 + Days | Subject), data=ss_sample, weights=c("weight1L1", "weight1L2"), fast=TRUE, nQuad=13, verbose=FALSE, run=TRUE)
   # check coef
@@ -84,6 +83,16 @@ test_that("agrees with lme4 3", {
                expected = unname(lmewm2vars)^2,
                tolerance = tolerance * wm2Sample$vars)
 })
+ 
+context("Mean Centering Matches HLM results")
+test_that("mean centering agrees with HLM", {
+ wm1 <- mix(Reaction ~ Days + (1|Subject), data=sleepstudyU, weights=c("weight1L1", "weight1L2"), nQuad=13,center_group=list("Subject"= as.formula(~Days)), verbose=FALSE)
+ expect_equal(unname(wm1$coef), c(298.507892, 10.467286), tolerance=1E-1)
+ expect_equal(wm1$lnl, -897.0393, tolerance=tolerance*897) # value from  lmer(Reaction ~ Days + (1 | Subject), data=sleepstudy, REML=FALSE)
+})
+
+
+
 
 ss <- sleepstudy
 ss1 <- ss
@@ -93,6 +102,9 @@ ss2 <- rbind(ss, subset(ss, Subject %in% doubles))
 
 ss1$W1 <- ifelse(ss1$Subject %in% doubles, 2, 1)
 ss1$W2 <- 1
+ss1$bin <- ifelse(sleepstudy$Reaction<300,0,1) #for the binomial test
+
+
 
 ss2$W2 <- ss2$W1 <- 1
 
@@ -111,25 +123,35 @@ ss4 <- ss
 ss4$W2 <- ifelse(ss4$Subject %in% doubles, 2, 1)
 ss4$W1 <- 1
 
+context("GLM works: Binomial")
+test_that("GLM works: Binomial", {
+  
+  
+  #full test for binomial 
+  bi_1 <- mix(bin~Days + (1|Subject),data=ss1,family=binomial(link="logit"),verbose=F,weights=c("W1", "W2"),nQuad=13)
+  expect_equal(unname(bi_1$coef),c(-3.3448,.5928),tolerance=1E-3)
+  expect_equal(bi_1$lnl,-93.751679,tolerance=1E-5*abs(bi_1$lnl))
+  
+  })
+
 context("repeating is the same as weighting: L1 replicate vs weigting")
 test_that("L1 replicate vs weigting", {
   # mix for L1, weighted
   wmeL1W <- mix(formula=Reaction ~ Days + (1 | Subject), data=ss1,
                 weights=c("W1", "W2"), nQuad=13, run=FALSE, fast=TRUE, verbose=FALSE)
-  
+
   # mix for L1, duplicated
   system.time(wmeL1D <- mix(formula=Reaction ~ Days + (1 | Subject), data=ss2,
                             weights=c("W1", "W2"), nQuad=13, run=FALSE,fast=TRUE,  verbose=FALSE))
-  #statares <- c(251.4619, 10.40726, 1000.7466, 1338.0865) # not used
-  
+
   # check weighted agrees with duplicated lme4 results
   expect_equal(wmeL1W$lnlf(wmeL1D$parlme), -1048.34318418762, tolerance=1050*tolerance)
-  grd <- numDeriv::grad(wmeL1W$lnlf, wmeL1D$parlme)
+  grd <- WeMix:::getGrad(wmeL1W$lnlf, wmeL1D$parlme, highAccuracy=TRUE)
   expect_equal(grd, rep(0,length(wmeL1D$parlme)), tolerance=tolerance)
-  
+
   # check duplicated agrees with duplicated lme4 results
   expect_equal(wmeL1D$lnlf(wmeL1D$parlme), -1048.34318418762, tolerance=1050*tolerance)
-  grd <- numDeriv::grad(wmeL1D$lnlf, wmeL1D$parlme)
+  grd <- WeMix:::getGrad(wmeL1D$lnlf, wmeL1D$parlme, highAccuracy=TRUE)
   expect_equal(grd, rep(0,length(wmeL1D$parlme)), tolerance=tolerance)
 })
 
@@ -140,26 +162,26 @@ test_that("grouping factor not sorted", {
   # mix for L1, weighted
   wmeL1W <- mix(formula=Reaction ~ Days + (1 | Subject), data=ss1_mixed,
                 weights=c("W1", "W2"), nQuad=13, run=FALSE,fast=TRUE,  verbose=FALSE)
-  
+
   # mix for L1, duplicated
   system.time(wmeL1D <- mix(formula=Reaction ~ Days + (1 | Subject), data=ss2,
                             weights=c("W1", "W2"), nQuad=13, run=FALSE,fast=TRUE,  verbose=FALSE))
   #statares <- c(251.4619, 10.40726, 1000.7466, 1338.0865) # not used
-  
+
   # check weighted agrees with duplicated lme4 results
   expect_equal(wmeL1W$lnlf(wmeL1D$parlme), -1048.34318418762, tolerance=1050*tolerance)
-  grd <- numDeriv::grad(wmeL1W$lnlf, wmeL1D$parlme)
+  grd <- WeMix:::getGrad(wmeL1W$lnlf, wmeL1D$parlme, highAccuracy=TRUE)
   expect_equal(grd, rep(0,length(wmeL1D$parlme)), tolerance=tolerance)
-  
+
   # check final results
-  mix1 <-  mix(formula=Reaction ~ Days + (1 | Subject), data=ss1_mixed,
-               weights=c("W1", "W2"), nQuad=13, run=TRUE, verbose=FALSE, fast = TRUE)
-  mix1REF <-  mix(formula=Reaction ~ Days + (1 | Subject), data=ss1,
-                  weights=c("W1", "W2"), nQuad=13, run=TRUE, verbose=FALSE, fast = TRUE)
-  expect_equal(mix1$coef, mix1REF$coef)
-  expect_equal(mix1$vars, mix1REF$vars)
-  expect_equal(mix1$lnl, mix1REF$lnl)
-  
+  suppressWarnings(mix1 <-  mix(formula=Reaction ~ Days + (1 | Subject), data=ss1_mixed,
+                                weights=c("W1", "W2"), nQuad=13, run=TRUE, verbose=FALSE, fast = TRUE))
+  suppressWarnings(mix1REF <-  mix(formula=Reaction ~ Days + (1 | Subject), data=ss1,
+                                   weights=c("W1", "W2"), nQuad=13, run=TRUE, verbose=FALSE, fast = TRUE))
+  expect_equal(mix1$coef, mix1REF$coef, tolerance=1e3)
+  expect_equal(mix1$vars, mix1REF$vars, tolerance=1e-3)
+  expect_equal(mix1$lnl, mix1REF$lnl, tolerance=1e-3)
+
 })
 
 context("repeating is the same as weighting: L2 replicate vs weigting")
@@ -168,16 +190,16 @@ test_that("L2 replicate vs weigting", {
   system.time(wmeL2D <- mix(formula=Reaction ~ Days + (1 | Subject),
                             data=ss3, weights=c("W1", "W2"),
                             nQuad=13, run=FALSE, verbose=FALSE))
-  
+
   # mix for L2, weighted
   system.time(wmeL2W <- mix(formula=Reaction ~ Days + (1 | Subject), data=ss4,
                             weights=c("W1", "W2"), nQuad=13, run=FALSE, verbose=FALSE))
-  
+
   expect_equal(wmeL2W$lnlf(wmeL2D$parlme), -1055.34690957995, tolerance=1050*2E-7)
-  grd <- numDeriv::grad(wmeL2W$lnlf, wmeL2D$parlme)
+  grd <- WeMix:::getGrad(wmeL2W$lnlf, wmeL2D$parlme, highAccuracy=TRUE)
   expect_equal(grd, rep(0,length(grd)), tolerance=tolerance*100) # note larger tollerance
   expect_equal(wmeL2D$lnlf(wmeL2D$parlme), -1055.34690957995, tolerance=1050*2E-7)
-  grd <- numDeriv::grad(wmeL2D$lnlf, wmeL2D$parlme)
+  grd <- WeMix:::getGrad(wmeL2D$lnlf, wmeL2D$parlme, highAccuracy=TRUE)
   expect_equal(grd, rep(0,length(grd)), tolerance=tolerance)
 })
 
@@ -186,37 +208,18 @@ test_that("L1 replicate vs weigting, 2 REs", {
   # mix for L1, weighted, 2 REs
   wmeL1WRE2 <- mix(formula=Reaction ~ Days + (1 | Subject) + (0+Days|Subject),
                    data=ss1, weights=c("W1", "W2"), nQuad=13, run=FALSE, verbose=FALSE)
-  
+
   # mix for L1, duplicated, 2 REs
   wmeL1DRE2 <- mix(formula=Reaction ~ Days + (1 | Subject) + (0+Days|Subject),
                    data=ss2, weights=c("W1", "W2"),nQuad=13, run=FALSE, verbose=FALSE)
-  
-  expect_equal(wmeL1WRE2$lnlf(wmeL1DRE2$parlme), -1018.29298875158, tolerance=1050*2E-7)
-  grd <- numDeriv::grad(wmeL1WRE2$lnlf, wmeL1DRE2$parlme)
-  expect_equal(grd, rep(0,length(grd)), tolerance=tolerance)
-  
-  expect_equal(wmeL1DRE2$lnlf(wmeL1DRE2$parlme), -1018.29298875158, tolerance=1050*2E-7)
-  grd <- numDeriv::grad(wmeL1DRE2$lnlf, wmeL1DRE2$parlme)
-  expect_equal(grd, rep(0,length(grd)), tolerance=tolerance)
-})
 
-context("repeating is the same as weighting: L2 replicate vs weigting, 2 REs")
-test_that("L2 replicate vs weigting, 2 REs", {
-  # mix for L1, duplicated, 2 REs
-  system.time(wmeL2DRE2 <- mix(formula=Reaction ~ Days + (1 | Subject) + (0+Days|Subject), data=ss3,
-                               weights=c("W1", "W2"),nQuad=13, run=FALSE, verbose=FALSE))
-  
-  # mix for L1, weighted, 2 REs
-  system.time(wmeL2WRE2 <- mix(formula=Reaction ~ Days + (1 | Subject) + (0+Days|Subject), data=ss4,
-                               weights=c("W1", "W2"),nQuad=13, run=FALSE, verbose=FALSE))
-  
-  expect_equal(wmeL2DRE2$lnlf(wmeL2DRE2$parlme), -1027.89702466404, tolerance=1050*2E-7)
-  grd <- numDeriv::grad(wmeL2DRE2$lnlf, wmeL2DRE2$parlme)
+  expect_equal(wmeL1WRE2$lnlf(wmeL1DRE2$parlme), -1018.29298875158, tolerance=1050*2E-7)
+  grd <- WeMix:::getGrad(wmeL1WRE2$lnlf, wmeL1DRE2$parlme, highAccuracy=TRUE)
   expect_equal(grd, rep(0,length(grd)), tolerance=tolerance)
-  
-  expect_equal(wmeL2WRE2$lnlf(wmeL2DRE2$parlme), -1027.89702466404, tolerance=1050*2E-7)
-  grd <- numDeriv::grad(wmeL2WRE2$lnlf, wmeL2DRE2$parlme)
-  expect_equal(grd, rep(0,length(grd)), tolerance=tolerance*100) # note larger tolerance
+
+  expect_equal(wmeL1DRE2$lnlf(wmeL1DRE2$parlme), -1018.29298875158, tolerance=1050*2E-7)
+  grd <- WeMix:::getGrad(wmeL1DRE2$lnlf, wmeL1DRE2$parlme, highAccuracy=TRUE)
+  expect_equal(grd, rep(0,length(grd)), tolerance=tolerance)
 })
 
 
@@ -232,7 +235,13 @@ test_that("simple model with zero variance estimate", {
   # lmeB <- summary(lmer(Reaction ~ Days + (1|Subject), data=ssB))
   suppressWarnings(mixB <- mix(formula=Reaction ~ Days + (1 | Subject), data=ssB,
                                weights=c("W1", "W2"),  nQuad=13, run=TRUE, fast=TRUE,  verbose=FALSE))
-  expect_equal(coef(mixB), structure(c(0.266730029137198, 3.09719970530335), .Names = c("(Intercept)", "Days")))
-  expect_equal(mixB$vars, structure(c(0.0794570533955131, 1.18418346832652), .Names = c("Subject:(Intercept)", "Residual")))
-  expect_equal(mixB$CMEAN, list(NULL, structure(c(0.277638347944171, 0.134014825632883, 0.18924017723366, -0.380043840177177, -0.0991323869545116, 0.183286617901737, -0.453643346335159, 0, -0.444084506833831, -0.223777920669184, 0.293971931396789, 0.260900976526689, -0.216206172798319, 0.405651983183519, -0.206689174876937, 0.209466503252012, -0.326652547838431, -0.199452174848381), .Dim = c(18L, 1L))))
+  expect_equal(mixB$lnl, -11099.01935618288, tol=1e-5)
+  expect_equal(coef(mixB), c(`(Intercept)` = 0.590311605676277, Days = 3.04635244383408), tol=1e-5)
+  expect_equal(mixB$vars, c(`Subject:(Intercept)` = 0.0840273638768919, Residual = 1.03106531538434), tol=1e-5)
 })
+
+
+
+
+
+

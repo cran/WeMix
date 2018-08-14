@@ -290,7 +290,7 @@ arma::mat calc_lin_lnl_quad_fast (arma::vec y,
         //Rcout << Wlm1NonD_g_weight(g_weight_j)  << std::endl;
       }
       if ((log(grdw(i)) + agg.cols(1,1) + Wlm1NonD_g_weight + arma::accu(grdv_i_t % grdv_i_t)).min() < -700) {
-        warning("Warning: The likelihood is probably inaccurate. Set fast = TRUE to get a more accurate estimation.");
+        warning("The likelihood function may be inaccurate, try fitting with fast=FALSE");
       }
       agg_li = exp(log(grdw(i)) + agg.cols(1,1) + Wlm1NonD_g_weight + arma::accu(grdv_i_t % grdv_i_t));
       if (integralMultiplierExponent != 0) {

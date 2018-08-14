@@ -26,8 +26,10 @@
 # @param fast boolean, should faster RCPP function be used 
 # @param mappedDefault boolean, when mapped is TRUE then variances are used as is, otherwise small (less than one) variances are exponentiated. This argument sets the default for a parameter of the returned function.
 param.lnl.quad <- function(y, X, levels, Z, ZFull, Qi, QiFull, omega, omegaFull,
-                           W, k, qp, cConstructor, bobyqa=FALSE, verbose=TRUE, acc0, fast, mappedDefault=FALSE) {
-  function(par, acc=acc0, top=TRUE, integralMultiplierExponent=NULL, integralZColumn=1, mapped=mappedDefault, fast0 = fast) {
+                           W, k, qp, cConstructor, bobyqa=FALSE, verbose=TRUE,
+                           acc0, fast, mappedDefault=FALSE, family=NULL) {
+  function(par, acc=acc0, top=TRUE, integralMultiplierExponent=NULL,
+           integralZColumn=1, mapped=mappedDefault, fast0 = fast) {
     # par- the random and fixed effects and variance 
     # acc -  numeric, accuracy of the mpfr
     # top - whether the top level (ie overall likelihood rather than group likelihood) is to be returned. 
@@ -78,7 +80,8 @@ param.lnl.quad <- function(y, X, levels, Z, ZFull, Qi, QiFull, omega, omegaFull,
                                C=parC, qp = qp, top=top,
                                verbose=verbose, acc=acc,
                                integralMultiplierExponent=integralMultiplierExponent,
-                               integralZColumn=integralZColumn)
+                               integralZColumn=integralZColumn,
+                               family=family)
     } # closes if (fast) {
     
     res
@@ -135,7 +138,7 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
                               top=TRUE, atPoint=FALSE, integralMultiplierExponent=NULL,
                               integralZColumn=1L,
                               verbose=TRUE, acc,
-                              omegaFull=omega, QiFull=Qi, ZFull=Z) {
+                              omegaFull=omega, QiFull=Qi, ZFull=Z, family) {
   ##################################
   ######### Outline ##############
   ### 1) Set up initial values 
@@ -190,22 +193,29 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
  
   ### 3) Evaluate likelihood at each point and apply weights 
   Wl$l <- 0 #set inital value of likelihood to 0, this will accumulate the likelihood as we iterate through grid points
-  
+
   # iterate over grid of integration points over which the likelihood will be evaluated
   for(i in 1:nrow(grd)) {
     # v is the IID N(0,I) vector at this integration point
     v <- t(grd[i,paste0("v",1:ncol(Zl))])
+   
     # this result is already weighted at the individual level
-    if(level==2) {
+    if(level == 2) {
       # this calcuation follows the methodology described in Hartzel 2001, pg 87
-      Wlm1$pts <- (omega[[2]] + sqrt(2) * matrix(t(v) %*% Qil, ncol=length(v), byrow=TRUE))
+      Wlm1$pts <- (omega[[level]] + sqrt(2) * matrix(t(v) %*% Qil, ncol=length(v), byrow=TRUE))
       # new predicted value of y 
       yyh <- yhat + rowSums(Zl * Wlm1$pts)
       # calculate the weigthts at this level based on the original wight and the  probabiilty 
-      Wlm1$ll <- Wlm1$w * dnorm(y, mean=yyh, sd=C[[1]], log=TRUE)
+      if(is.null(family)) {
+        Wlm1$ll <- Wlm1$w * dnorm(y, mean=yyh, sd=C[[1]], log=TRUE)
+      } else {
+        Wlm1$ll <- family$lnl(y, family$linkinv(yyh), Wlm1$w, sd=C[[1]])
+      }
     } else {
       # similar calcualation to level 2, but at he individual observaiton level to handle level 1 probabilty 
+      # used below to get "prior" lnl
       Wlm1$pts <- (omega[[level]] + sqrt(2) * matrix(t(v) %*% Qil, ncol=length(v), byrow=TRUE))
+      # used here to get lnl at these integration points
       pts <- (omegaFull[[level]] + sqrt(2) * matrix(t(v) %*% QiFulll, ncol=length(v), byrow=TRUE))
       yyh <- yhat + rowSums(ZFulll * pts)
       # set top=FALSE because it will not be the top level
@@ -213,7 +223,8 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
                                    omega=omega, W=W, C=C, qp=qp, top=FALSE,
                                    atPoint=FALSE, integralMultiplierExponent=NULL,
                                    verbose=verbose, acc=acc,
-                                   omegaFull=omegaFull, QiFull=QiFull, ZFull=ZFull)
+                                   omegaFull=omegaFull, QiFull=QiFull, ZFull=ZFull,
+                                   family=family)
     } # ends the else part of the if (level==2 ) conditional 
     if(atPoint) {
       agg <- aggregate(ll ~ indexp1, Wlm1, sum)
