@@ -746,7 +746,7 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   
   #if any of variances  got re mapped, re calculate hessian with new position 
   if (length(need_fix_vars) > 0){
-    hessian <- getHessian(fn0,c(est[1:k],covs_and_vars))
+    hessian <- getHessian(fn0R,c(est[1:k],covs_and_vars))
   }
 
   #calculate interclass corelation (ICC) 

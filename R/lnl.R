@@ -165,6 +165,20 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
   Qil <- Qi[[level]]
   QiFulll <- QiFull[[level]]
   
+  # replace aggregate() calls with matrix modification for speed. declaring arrays and matrices 
+  ni_Wl <- table ((Wlm1$indexp1)) 
+  ntot <- length (Wlm1$indexp1)
+  Wl_indices <- unique (Wlm1$indexp1)
+  k_indices = length (Wl_indices)
+  # create block diagonal matrix for later multiplication
+  diagM1 <- matrix(0,k_indices,sum(ni_Wl))
+  runtot = 0
+  # fill block diagonal matrix 
+  for (ii in 1:k_indices) { 
+    diagM1[ii,] <- c(rep (0,runtot), rep (1,ni_Wl[ii]), rep (0,ntot - ni_Wl[ii] - runtot)) 
+    runtot = runtot + ni_Wl[ii]
+  }
+  
   ### 2) Create grid of integration points
   
   #Calcuate traditional quadrature points
@@ -227,7 +241,11 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
                                    family=family)
     } # ends the else part of the if (level==2 ) conditional 
     if(atPoint) {
-      agg <- aggregate(ll ~ indexp1, Wlm1, sum)
+      # replace aggregate() calls with matrix modification for speed. actual matrix multiplication
+      agg2 <- diagM1 %*% Wlm1$ll
+      agg <- cbind.data.frame(Wl_indices, agg2)
+      #the above two lines replicate what was originally done with this line below
+      #agg <- aggregate(ll ~ indexp1, Wlm1, sum) 
       colnames(agg) <- c("index", "ll")
       if(!top) {
         return(agg$ll)
@@ -248,9 +266,17 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
       } else {
         aggPrior <- Wlm1NonD[,c("indexp1", "g_weight")]
       }
-      # add likelihood for all observation in each group 
-      agg <- aggregate(ll ~ indexp1, Wlm1, sum)
+      
+      # add likelihood for all observation in each group
+      
+      # replace aggregate() calls with matrix modification for speed. actual matrix multiplication
+      agg2 <- diagM1 %*% Wlm1$ll
+      agg <- cbind.data.frame(Wl_indices, agg2)
+      #the above two lines replicate what was originally done with this line below
+      #agg <- aggregate(ll ~ indexp1, Wlm1, sum) 
+      colnames(agg) <- c("indexp1", "ll")
       names(agg)[!names(agg)%in%"indexp1"] <- "lli"
+      
       agg <- merge(agg, aggPrior, by="indexp1")
       # exponetiate to reverse the log manipulations done earlier 
       # using log manipulation is important for maintaining precision when likelihood is very small 
