@@ -1,6 +1,6 @@
 Package: WeMix
-Version: 2.1.0
-Date: 2018-09-17
+Version: 2.2.0
+Date: 2019-03-12
 Title: Weighted Mixed-Effects Models, using Multilevel Pseudo Maximum
         Likelihood Estimation
 Author: Paul Bailey, Claire Kelley, Trang Nguyen, Huade Huo. 
@@ -18,9 +18,9 @@ Note: This publication was prepared for NCES under Contract No.
         ED-IES-12-D-0002 with American Institutes for Research. Mention
         of trade names, commercial products, or organizations does not
         imply endorsement by the U.S. government.
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
 Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2018-09-24 14:10:21 UTC; tnguyen
+Packaged: 2019-03-13 01:45:56 UTC; ckelley
 Repository: CRAN
-Date/Publication: 2018-09-24 15:00:03 UTC
+Date/Publication: 2019-03-13 08:18:07 UTC

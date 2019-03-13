@@ -1,17 +1,14 @@
 # This helper funciton returns just the coefficient from the WeMix results object
-#' @export
 coef.WeMixResults <- function(object, ...) {
   object$coef
 }
 
 # This helper function prints the coefficient from the WeMix results object
-#' @export
 print.WeMixResults <- function(x, ...) {
   print(x$coef)
 }
 
 # This helper funciton creates a coefficient matrix from WeMix results
-#' @export
 summary.WeMixResults <- function(object, ...) {
   VC <- makeSandwich(object) # calculates the sandwhich estimator of variance 
   x0 <- object
@@ -25,7 +22,6 @@ summary.WeMixResults <- function(object, ...) {
 }
 
 # This helper funciton creates a coefficient matrix from WeMix results
-#' @export
 #' @importFrom stats printCoefmat
 print.summaryWeMixResults <- function(x, ...) {
   cat("Call:\n")
