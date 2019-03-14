@@ -42,7 +42,6 @@
 #'is contained in yhat which incorporates Xb at the top level and all relevant 
 #'Zu information at lower levels.
 #'@author Huade Huo, Paul Bailey, Claire Kelley
-#'@export
 calc_lin_lnl_quad_fast <- function(y, yhat, level, Z, Qi, omega, W, C, qp, omegaFull, QiFull, ZFull, top = TRUE, atPoint = FALSE, integralMultiplierExponent = 0L, integralZColumn = 1L, verbose = TRUE, acc = 120L) {
     .Call(`_WeMix_calc_lin_lnl_quad_fast`, y, yhat, level, Z, Qi, omega, W, C, qp, omegaFull, QiFull, ZFull, top, atPoint, integralMultiplierExponent, integralZColumn, verbose, acc)
 }

@@ -1,9 +1,9 @@
-a649f0354c75fbb5cb257742cc8a9c33 *DESCRIPTION
-d376e6793dd83903fc2fd88c18d864bc *NAMESPACE
-04c4861c5a5693c955f326a6efbaa873 *R/RcppExports.R
+954e41fb3e1b1922539f6efb1eb7545b *DESCRIPTION
+3b68038685b9fbb39ff720f5e37ad4f0 *NAMESPACE
+b68fb9b6750df7b2c8e90617b8eb3b78 *R/RcppExports.R
 a43c4132cd7c5c65ba2c83d8eeb287b3 *R/adaptiveQuad.R
 bd5e81dd2bf4d864527a737140e65903 *R/covarianceConstructors.R
-f3dfd1c7c53ac19b13bfa7b1dfffa44b *R/drv.R
+75971306c9d3e0e7fe4778379bea06cf *R/drv.R
 410f343a164ac384f56758027bc2ea00 *R/helpers.R
 ba00e29194fe84b1e7d292c5bb8fcdfe *R/lnl.R
 45d7d5d80367f0dca9f39856d70ff56d *R/weMix-package.R
@@ -11,7 +11,7 @@ ba00e29194fe84b1e7d292c5bb8fcdfe *R/lnl.R
 6dfabc2260be05af42716de8eaa59e2c *inst/NEWS.Rd
 39df23453619f6d9f698c2911f4d6978 *inst/doc/WeightedMixedModels.R
 6ca11e1c99d8f34357c836cbd52efb9c *inst/doc/WeightedMixedModels.Rmd
-3e009b3d716ba249db30e05913804899 *inst/doc/WeightedMixedModels.pdf
+c52771497c15a3d7abfb2057f7708df0 *inst/doc/WeightedMixedModels.pdf
 6cf5334539b701d2f4ab02266587246d *man/WeMix-package.Rd
 fb0cb4cbd19ddbc9593843399346aba1 *man/calc_lin_lnl_quad_fast.Rd
 3c5997c91ee832745de493f8c603866d *man/mix.Rd
