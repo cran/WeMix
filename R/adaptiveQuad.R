@@ -1,63 +1,77 @@
 #' Survey Weighted Mixed-Effects Models 
 #' @param formula  a formula object in the style of \code{lme4} that creates the model.
 #' @param data  a data frame containing the raw data for the model.
-#' @param weights a character vector of weight variables found in data frame.
-#' @param nQuad an integer  number of quadrature point to evaluate on. See notes for guidelines. 
-#' @param run  logical; \code{TRUE} runs the model why \code{FALSE} provides partial output for debugging or testing.
-#' @param keepAdapting logical, set to \code{TRUE} when the adaptive quadrature should adapt after every Newton step. Defaults to TRUE. 
-#' \code{FALS}E should be used rarely for faster (but less accurate) results.
-#' @param verbose logical, default \code{FALSE}; set to \code{TRUE} to print results of intermediate steps 
-#' @param acc0 integer, the precision of \code{mpfr}, default 120 
-#' @param start numeric vector representing the point at which the model should start optimization; takes the shape of c(coef, vars) 
-#' from results (see help). 
-#' @param fast logical; use  c++ function for faster result. Defaults to \code{TRUE}. 
-#' @param family the family; optionally used to specify generalized linear mixed models. Currently only \code{binomial(link="logit")} is supported.
+#' @param weights a character vector of names of weight variables found in the data frame.
 #' @param center_group a list where the name of each element is the name of the aggregation level, and the element is a formula of
-#'  variable names to be group mean centered, for example to group mean center gender and age with in the group student:
+#'  variable names to be group mean centered; for example to group mean center gender and age within the group student:
 #'   \code{list("student"= ~gender+age)}, default value of NULL does not perform any group mean centering. 
 #' @param center_grand  a formula of variable names  to be grand mean centered, for example to center the variable education by overall mean of 
-#' education: \code{~education}. Default is NULL which does no 
-#' centering
+#' education: \code{~education}. Default is NULL which does no centering. 
+#' @param nQuad an optional integer  number of quadrature points to evaluate models solved by adaptive quadrature.
+#'  Only non-linear models are evaluated with adaptive quadrature. See notes for additional guidelines. 
+#' @param max_iteration a optional integer, for non-linear models fit by adaptive quadrature which limits number of iterations allowed
+#'   before quitting. Defaults  to 10. This is used because if the liklihood surface is flat, 
+#'   models may run for a very  long time without converging.
+#' @param run  logical; \code{TRUE} runs the model while \code{FALSE} provides partial output for debugging or testing. Only applies to non-linear
+#'  models evaluated by adaptive quadrature. 
+#' @param keepAdapting logical, set to \code{TRUE} when the adaptive quadrature should adapt after every Newton step. Defaults to \code{FALSE}. 
+#' \code{FALSE} should be used for faster (but less accurate) results. Only applies to non-linear models. 
+#' @param verbose logical, default \code{FALSE}; set to \code{TRUE} to print results of intermediate steps of adaptive quadrature. Only applies to non-linear models.
+#' @param acc0 integer, the precision of \code{mpfr}, default 120. Only  applies to non-linear models. 
+#' @param start optional numeric vector representing the point at which the model should start optimization; takes the shape of c(coef, vars) 
+#' from results (see help). 
+#' @param fast logical; deprecated
+#' @param family the family; optionally used to specify generalized linear mixed models. Currently only \code{binomial(link="logit")} is supported.
 #' @description
 #' Implements a survey weighted mixed-effects model using the provided formula. 
 #' @details
-#' Uses adaptive quadrature following the method in Stata's GLAMMM. For additional details, see the vignette 
-#' \emph{Weighted Mixed Models}  which provides extensive examples as well as a description of the mathematical 
-#' basis of the estimation procedure. The main specification also shows comparisons to model specifications in other
-#' common software. 
-#' 
+#' Linear models are solved using a modification of the analytic solution developed by Bates and Pinheiro (1998).
+#' Non-linear models are solved using adaptive quadrature following the method in STATA's GLAMMM (Rabe-Hesketh & Skrondal, 2006).
+#' For additional details, see the vignettes \emph{Weighted Mixed Models: Adaptive Quadrature} and  \emph{Weighted Mixed Models: Analytical Solution} 
+#' which provide extensive examples as well as a description of the mathematical basis of the estimation procedure and comparisons to model 
+#' specifications in other common software. 
 #' Notes: 
 #' \itemize{
-#' \item Standard errors of random effect variances are estimated by the Sandwich Method; see main vignette for details. 
-#' \item To see the function that is maximized in the estimation of this model; see the section on "Model fitting" in the main vignette.
-#' \item When all weights above the individual level are 1, this is similar to a \code{lmer} and you should use \code{lme4} because it is much faster.
-#' \item Starting coefficients are not provided they are estimated using \code{lme4}. 
-#' \item When the variance of a random effect is very low (<.1), we don't estimate it because very low variances create problems with  numerical evaluation.
-#'  In these cases, consider estimating without that RE.
-#'  \item The model is estimated by maximum likelihood estimation, restricted maximum likelihood (REML) is not available. 
-#' \item To choose number of quadrature points, a balance is needed between accuracy and speed- estimation time increases quadratically 
-#' with the number of points chosen. In addition, an odd number of points is traditionally used. We recommend starting at 13 and increasing 
-#' or decreasing as needed. 
+#' \item Standard errors of random effect variances are robust; see vignette for details. 
+#' \item To see the function that is maximized in the estimation of this model, see the section on "Model Fitting" in the
+#'  \emph{Introduction to Mixed Effect Models With WeMix} vignette.
+#' \item When all weights above the individual level are 1, this is similar to a \code{lmer} and you should use \code{lme4} 
+#' because it is much faster.
+#' \item If  starting coefficients are not provided they are estimated using \code{lme4}. 
+#' \item For non-linear models, when the variance of a random effect is very low (<.1), WeMix doesn't estimate it, because very 
+#' low variances create problems with  numerical evaluation. In these cases, consider estimating without that random effect. 
+#'  \item The model is estimated by maximum likelihood estimation.
+#' \item To choose the number of quadrature points for non-linear model evaluation, a balance is needed between accuracy and
+#' speed; estimation time increases quadratically with the number of points chosen. In addition, an odd number of points is 
+#' traditionally used. We recommend starting at 13 and increasing or decreasing as needed. 
 #' }
 #' @importFrom lme4 getME lmer glmer lFormula
-#' @importFrom stats dnorm aggregate terms dpois dgamma dbinom ave model.matrix terms.formula as.formula
+#' @importFrom stats dnorm aggregate terms dpois dgamma dbinom ave model.matrix terms.formula as.formula sigma complete.cases
 #' @importFrom numDeriv genD hessian grad
-#' @useDynLib WeMix, .registration = TRUE
-#' @importFrom Rcpp evalCpp 
+#' @importFrom minqa bobyqa 
+#' @importFrom Matrix nearPD
 #' @return object of class \code{WeMixResults}. 
-#' This is a list with objects: 
-#' \itemize{
-#' \item lnlf - function, the likelihood function 
-#' \item lnl - numeric, the logliklihood of the model 
-#' \item coef - numeric vector, the estimated coefficients of the model 
-#' \item vars- numeric vector, the variances
-#' \item call - the original call used 
-#' \item levels - integer, the number of levels in the model 
-#' \item ICC - numeric, the Intraclass Correlation Coefficient 
-#' \item CMEAN  - function the conditional mode function that can be called with par and omega to get the conditional mode of the likelihood function
-#' \item CMODE - function the conditional mean function that can be called with par and omega to get the conditional mean of the likelihood function
-#' \item Hessian - the second derivative of the likelihood function
-#' }
+#' This is a list with elements: 
+#' \item{lnlf}{function, the likelihood function.} 
+#' \item{lnl}{numeric, the log-likelihood of the model. }
+#' \item{coef}{numeric vector, the estimated coefficients of the model. }
+#' \item{ranefs}{the group-level random effects.}
+#' \item{SE}{the standard errors of the fixed effects, robust if robustSE was set to true.}
+#' \item{vars}{numeric vector, the random effect variances.}
+#' \item{theta}{the theta vector.}
+#' \item{call}{the original call used.}
+#' \item{levels}{integer, the number of levels in the model.}
+#' \item{ICC}{numeric, the intraclass correlation coefficient.}
+#' \item{CMODE}{the conditional mean of the random effects.}
+#' \item{invHessian}{inverse of the second derivative of the likelihood function.}
+#' \item{ICC}{the interclass correlation.}
+#' \item{is_adaptive}{logical, indicates if adaptive quadrature was used for estimation.}
+#' \item{sigma}{the sigma value.}
+#' \item{ngroups}{the number of observations in each group.}
+#' \item{varDF}{the variance data frame in the format of the variance data frame returned by lme4.}
+#' \item{varVC}{the variance-covariance matrix of the random effects.}
+#' \item{cov_mat}{the variance-covariance matrix of the fixed effects.}
+#' \item{var_theta}{the variance covariance matrix of the theta terms.}
 #' @examples 
 #' \dontrun{
 #' library(WeMix)
@@ -65,25 +79,31 @@
 #' 
 #' data(sleepstudy)
 #' ss1 <- sleepstudy
-#' doubles <- c(308, 309, 310) # subject with double obs
+#' #add group variables for 3 level model 
+#' ss1$Group <- 1
+#' ss1$Group <- ifelse(ss1$Subject %in% c(349,335,330, 352, 337, 369), 2, ss1$Group)
+#'
 #' # Create weights
-#' ss1$W1 <- ifelse(ss1$Subject %in% doubles, 2, 1)
+#' ss1$W1 <- ifelse(ss1$Subject %in% c(308, 309, 310), 2, 1)
 #' ss1$W2 <- 1
+#' ss1$W3 <- ifelse(ss1$Group == 2,2,1 )
 #' 
 #' # Run random-intercept 2-level model 
-#' mix1 <- mix(Reaction~ Days + (1|Subject),data=ss1, weights = c("W1","W2"),
-#'             fast=TRUE, nQuad=13, verbose=FALSE)
+#' two_level <- mix(Reaction~ Days + (1|Subject),data=ss1, weights = c("W1","W2"))
 #' 
-#' # Run random-intercept 2-level model with group-mean centering
-#' grp_centered <- mix(Reaction ~ Days + (1|Subject), data=ss1, weights = c("W1","W2"), nQuad=13,
-#'           fast=TRUE, center_group = list("Subject" = ~Days),
-#'           verbose=FALSE)
-#'}
+#' #Run random-intercept 2-level model with group-mean centering
+#' grp_centered <- mix(Reaction ~ Days + (1|Subject), data=ss1, weights = c("W1","W2"),
+#'  center_group = list("Subject" = ~Days))
+#'
+#'  #Run three level model with random slope and intercept. 
+#'  three_level <- mix(Reaction~ Days + (1|Subject) + (1+Days|Group),data=ss1, 
+#'  weights = c("W1","W2","W3"))
+#' }
 #' @author Paul Bailey, Claire Kelley, and Trang Nguyen 
 #' @export
-mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
+mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_iteration=10,nQuad=13L, run=TRUE, verbose=FALSE,
                 acc0=120, keepAdapting=FALSE, start=NULL, fast=FALSE,
-                family=NULL,center_group=NULL,center_grand=NULL) {
+                family=NULL) {
   #############################################
   #                   Outline:                #   
   #     1) data preparation and reshaping     #
@@ -97,23 +117,32 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   #############################################
   call <- match.call()
   # check class and some requirements of arguments
-  if(!inherits(formula, "formula")) stop(paste0("the argument ", sQuote("formula"), " must be a formula."))
-  if(!inherits(data, "data.frame")) stop(paste0("the argument ", sQuote("data"), " must be a data.frame."))  
-  if(nQuad <= 0) stop(paste0(sQuote("nQuad"), " must be a positive integer."))
-  if(!inherits(run, "logical")) stop(paste0("the argument ", sQuote("run"), " must be a logical."))
-  if(!inherits(verbose, "logical")) stop(paste0("the argument ", sQuote("verbose"), " must be a logical."))
+  if(!inherits(formula, "formula")) stop(paste0("The argument ", sQuote("formula"), " must be a formula."))
+  if(!inherits(data, "data.frame")) stop(paste0("The argument ", sQuote("data"), " must be a data.frame."))  
+  if(nQuad <= 0) stop(paste0("The argument ", sQuote("nQuad"), " must be a positive integer."))
+  if(!inherits(run, "logical")) stop(paste0("The argument ", sQuote("run"), " must be a logical."))
+  if(!inherits(verbose, "logical")) stop(paste0("The argument ", sQuote("verbose"), " must be a logical."))
   if(!inherits(weights, "character")) stop(paste0("The argument ", sQuote("weights"), " must be a character vector of weight column names in ", sQuote("data"), "."))
   if(any(!weights %in% colnames(data))) stop(paste0("The argument ", sQuote("weights"), " must specify valid columns in ", sQuote("data"), "."))
-  if(acc0 <= 0) stop(paste0(sQuote("acc0"), " must be a positive integer."))
+  if(acc0 <= 0) stop(paste0("The argument ", sQuote("acc0"), " must be a positive integer."))
+  if(!missing(fast)) warning(paste0("The ", sQuote("fast"), " argument is deprecated."))
+  
+  #currently wemix can only use complete cases
+  #this removes any  incomplete cases if they exist 
+  if(any(is.na(data[,c(all.vars(formula),weights)]))) {
+    warning(paste0("There were ", sum(complete.cases(data)==FALSE), " rows with missing data. These have been removed."))
+    data <- data[complete.cases(data),]
+  }
+  #this removes any zero weight cases if they exist 
+  data[apply(data[,weights]<=0, 1, any), weights] <- NA
+  if(any(is.na(data[,weights]))) {
+    warning(paste0("There were ", sum(complete.cases(data)==FALSE), " rows with non-positive weights. These have been removed."))
+    data <- data[complete.cases(data),]
+  }
   
   # setup family
-
   # if family is set, use it
   if(!is.null(family)) {
-    if(fast) {
-      warning(paste0("Argument ", dQuote("fast"), " not implemented when the ", dQuote("family")," argument is set. Setting to ", sQuote("FALSE"), "."))
-      fast <- FALSE
-    }
     family$lnl <- switch(family$family,
       binomial = function(y, mu, w, sd) {
                    w * dbinom(x=y, size=rep(1,length(y)), prob=mu, log=TRUE)
@@ -125,14 +154,13 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
                    w * dnorm(x=y, mean=mu, sd=sd, log=TRUE)
                  },
       Gamma = function(y, mu, w, sd) {
-              stop("Gamma is not currently  implemented.")
-              # w * dgamma(x=y, shape=mu, rate=sd, log=TRUE)
+              stop("The gamma family is not implemented.")
                  },
       inverse.gaussian = function(y, mu, w, sd) {
-                   stop("Inverse Gaussian is not implemented.")
+                   stop("The inverse Gaussian family is not implemented.")
                  },
       function(y, mu, w, sd) {
-        stop("Could not find family.")
+        stop(paste0("Unknown family."))
       }
     )
   }
@@ -158,37 +186,40 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   # apply the parser to each random effect, and unique them
   groupNames <- rev(unique(unlist(lapply(unparsedGroupNames, groupParser))))
   # reorder data by groups (in order to make Z matrix obtained from lme easier to work with)
-  data <- data[do.call(order, lapply(groupNames, function(colN) data[,colN])),]
-  
+  data <- data[do.call(order, lapply(rev(groupNames), function(colN) data[,colN])),]
   
   if(!is.null(center_group)){
+    #first add nested variables to data set if they exist, this is to handle / and : in group vars
+    if (any(grep(":|/",names(center_group)))) {
+      nested_groups <- names(center_group)[grep(":|/",names(center_group))]
+      for (var in nested_groups){
+         vars <- unlist(strsplit(var,":|/"))
+         data[,var] <- paste0(data[,vars[1]],":",data[,vars[2]])
+      }
+    } #end of if there are : and / 
     if(!all(names(center_group) %in% names(data))){
-      stop("Not all centring group variables are found in the data set. ")
-    } else if (any(unlist(lapply(all.vars(formula),function(x){typeof(data[,x])}))=="factor")){
-      stop("Mean centering is not applicable for factor variable")
-    }
-      else {
-      for(name in names(center_group)){ #loop is included here for forward compatability with centering at >2 levels 
+      stop("Not all centering group variables are found in the data set. ")
+    } else {
+      for(name in names(center_group)){ #loop is included here for centering at >2 levels 
         #need to get variable names from model matrix becasue of factor transformations
         #remove the first element becasue it is the intercept
-        lev <- which(groupNames == name)
         
+        #identify level - it is the minimum group to account for : and / specified groups
+        lev <- min(which(groupNames %in% unlist(strsplit(name,":|/"))))
+
         X <- model.matrix(center_group[[name]],data=data)
         vars <- colnames(X)[-1]
-        
         X <- cbind(X,data[,c(name,weights0[lev])])
         
         #subtract group average from value and put back into data 
         #including scaling factor that accoutns for the fact weights might not sum to 0 l
-        
         data[,vars] <- sapply(vars, function(var){X[,var] - ave(X[,var]*X[,weights0[lev]],X[,name])/(nrow(X)/sum(X[,weights0[lev]]))})
         
       }
     } #end else for loop mean centering varibles 
   }
-
   
-  
+   
   if(!is.null(center_grand)){
     X <- model.matrix(center_grand,data=data)
     vars <- colnames(X)[-1]
@@ -200,14 +231,13 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   # remove row names so that resorted order is used in lme model 
   row.names(data) <- NULL
   
-  
   # run lmer to get a ballpark fit and model structure information
   if(is.null(family)) {
     if(verbose) {
       cat("Using lmer to get an approximate (unweighted) estimate and model structure.\n")
     }
-    
-    lme <- lmer(formula, data, REML=FALSE)
+    # warnings happen on e.g. near-singular solve and are not a concern
+    suppressWarnings(lme <- lmer(formula, data, REML=FALSE))
   } else {
     if(verbose) {
       cat("Using glmer to get an approximate (unweighted) estimate and model structure.\n")
@@ -274,7 +304,7 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   levels <- length(Z)
   
   if(length(weights) != levels) {
-    stop(paste0("the argument ", sQuote("weights"), " must be a list of column names with length equal to levels."))  
+    stop(paste0("The argument ", sQuote("weights"), " must be a list of column names with length equal to levels."))  
   }
   
   # transform weights into a list of  dataframes where each data frame has
@@ -301,13 +331,12 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   k <- length(lmeb <- getME(lme, "fixef"))
   parlme <- c(lmeb)
   lmesummary <- summary(lme)
-  
   # find number of unique groups 
   ngrp <- lmesummary$ngrps
   if(length(unique(ngrp)) != length(ngrp)) {
     # if non-nested groups are present (ie not all obs at lower levels are part of upper level groups) 
     # then there will be non unique entries in ngrp 
-    stop("The model does not appear to have nested groups.")
+    stop("This does not appear to be a nested model. Some levels of this model have the same number of subject/groups as the level above them.")
   }
 
   # set up variance and coefficients 
@@ -357,6 +386,9 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   # add names to the variance terms of the paramter vector
   names(est0)[-(1:k)] <- lmeVarDF$grp
   
+  #add full variable name to lmeVarDF for later use 
+  lmeVarDF$fullGroup <- paste0(lmeVarDF$grp,ifelse(!is.na(lmeVarDF$var1),paste0(".",lmeVarDF$var1),""))
+
   # use helper funtion to create a covariance matrix from the data frame with variance and covariance information
   covarianceConstructor <- covMat2Cov(lmeVarDF)
   # C is the realization of the covariance constructor
@@ -366,15 +398,232 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   y <- data[,c(y_label)]
   X <- getME(lme,"X")
   
-  
+  ##############################################################
+  #   2a) Pass linear models to symbolic integration method    #
+  ##############################################################
+  if(is.null(family)){
+    #get the raw Z matrix
+    Z <- getME(lme,"Z")
+    #extract Zt from lme and transpose to Z  
+    temp_Z <- getME(lme,"Ztlist")
+    #find out which level each applies to 
+    z_levels <- unique(lmeVarDF[ lmeVarDF$fullGroup%in%names(temp_Z),c("fullGroup","level")])
+    Zlist <- list()
+    for (i in 2:levels){
+      z_names <- z_levels[z_levels$level==i,"fullGroup"]
+      Zlist[[i-1]] <-t(as.matrix((Reduce(rbind,temp_Z[z_names]))))
+    }
+    #seperating into single random effects using the pointers
+    pointers <- getME(lme,"Gp")
 
+    #find levels at which z applies
+    grp_level <- lmeVarDF$level
+    names(grp_level) <- lmeVarDF$grp
+    
+    ref_comps <- names(getME(lme,"cnms"))
+    Zlevels <- unique(grp_level[ref_comps])
+    
+    weights_list <- lapply(weights, FUN=function(x){x$w})
+   
+    # group id needs to be incremetally increasing starting at 1
+    # as factor then as numeric should take care of this 
+    group_id_list <- lapply(all_groups, FUN=function(x){as.numeric(as.factor(data[,x]))})
+    group_id <- matrix(unlist(group_id_list), nrow=nrow(data))
+    names(all_groups) <- make.names(all_groups)
+    
+    # if level >2 then set up conditional weigths
+    weights_list_cond <- weights_list
+    # give group_id good names; these are the name.names names, necessary for : and / to work
+    colnames(group_id) <- names(all_groups)
+    if(levels > 2 ){
+      cWeights <- cbind(group_id, data[,weights0])
+      #names(cWeights) <- colnames(cWeights)
+      for (level in 1:(levels-1)){
+        cWeights[,weights0[level]] <- cWeights[,weights0[level]]/cWeights[,weights0[level + 1]]
+      }
+      weights_list_cond[[1]] <- cWeights[,weights0[1]] #first level weights dont get grouped 
+        
+      for (level in 2:levels){
+        weights_list_cond[[level]] <- aggregate(formula(paste0(weights0[level],"~",names(all_groups)[level-1])), data=cWeights, FUN=function(x) x[1])[,2]
+      }
+    }
+    theta <- getME(lme, "theta")
+    theta1 <- theta
+    for(i in 1:length(theta1)) {
+      theta1[i] <- 1
+    }
+    bsqG <- devG(y, X, Zlist=Zlist, Zlevels=Zlevels, weights=weights_list, weightsC = weights_list_cond,
+                 groupID=group_id,
+                 lmeVarDF = lmeVarDF,
+                 v0=theta1)
+    if(verbose) {
+      message("Fitting model.")
+    }
+    opt <- bobyqa(fn=bsqG, par=theta)
+    
+    names(opt$par) <- names(theta)
+    
+    #opt$par are the theta estimates
+    bsq <- bsqG(opt$par, getBS=TRUE) 
+
+    if(verbose) {
+      message("Estimating covariance.")
+    }
+    bhatq <- bsq(opt$par, robustSE=TRUE) #calculate robust SE
+    b2 <- function(f, optpar, b, sigma0, inds) {
+      function(x) {
+        sigma <- x[length(x)]
+        x <- x[-length(x)]
+        xp <- optpar
+        xp[inds] <- x
+        names(xp) <- names(optpar)
+        f(v=xp, sigma=sigma, beta=b)$lnl
+      }
+    }
+    varDF <- lmeVarDF[,c("grp", "var1", "var2", "vcov", "ngrp", "level")]
+    varVC <- list(Residual=bhatq$sigma^2)
+    varDF$vcov <- 0
+    varDF$SEvcov <- NA
+    #set up list jaccobian of gradient for post hoc wald test
+    j_mat_list <- list() #set up to hold jaccobian 
+    for(li in 2:levels) {
+      iDelta <- bhatq$iDelta[[li]]
+      iDeltai <- bhatq$sigma^2 * (iDelta %*% t(iDelta))
+      # varDF for just this level, this is a temp df that is used just in this loop and then not stored
+      varDFi <- varDF[varDF$level %in% c(li,1),]
+      # names of the thetas, minus the sigma term which we add back manually when needed
+      thetaNamesi <- ifelse(is.na(varDFi$var2), paste0(varDFi$grp,".", varDFi$var1), paste0(varDFi$grp, ".", varDFi$var2, ".", varDFi$var1))[-nrow(varDFi)]
+      inds <- names(opt$par) %in% thetaNamesi
+      theta_cov_mat <- solve(-1*getHessian(b2(f=bsq, optpar=opt$par, b=bhatq$b, sigma0=bhatq$sigma, inds=inds),
+                                           x=c(opt$par[inds], sigma=bhatq$sigma)))
+      colnames(theta_cov_mat) <- rownames(theta_cov_mat) <- c(names(opt$par[inds]),"sigma")
+      J <- bhatq$Jacobian[rownames(theta_cov_mat), colnames(theta_cov_mat)]
+      preVCi <- theta_cov_mat %*% J %*% theta_cov_mat
+      # reorder to be in the same order as varDFi
+      preVCi <- preVCi[c(thetaNamesi, "sigma"), c(thetaNamesi, "sigma")]
+      cn <- colnames(iDeltai)
+      sigma2 <- bhatq$sigma^2
+      j_list <-  list()
+      for(ii in 1:nrow(iDeltai)) {
+        for(jj in ii:ncol(iDeltai)) {
+          varDFi$grad <- 0
+          if(ii==jj) {
+            # diagonal element, so it is a variance
+            # at this level, var1 is the column, and var2 is NA means it is a variance
+            varDF[varDF$level==li & varDF$var1==cn[ii] & is.na(varDF$var2),"vcov"] <- iDeltai[ii,ii]
+            # claculate the variance of the variance. let g = grad(iDeltai[ii,ii]) wrt the elements or iDelta and sigma2
+            # diagonal element
+            varDFi$grad[varDFi$var1 %in% rownames(iDelta)[ii] & is.na(varDFi$var2)] <- sigma2 * 2 * iDelta[ii,ii]
+            # off-diagonal elements are needed when ii > 1
+            if(ii > 1){
+              for(iii in 1:(ii-1)) {
+                varDFi$grad[(varDFi$var1 %in% rownames(iDelta)[ii] | varDFi$var2 %in% rownames(iDelta)[ii]) & (varDFi$var1 %in% rownames(iDelta)[iii] | varDFi$var2 %in% rownames(iDelta)[iii])] <- sigma2 * 2 * iDelta[ii,iii]
+              }
+            }
+            # part of grad that is sigma
+            varDFi$grad[nrow(varDFi)] <- 2 * iDeltai[ii,ii]/sqrt(sigma2)
+            # this is the Taylor series gT %*% [VC of iDelta] %*% g
+            varDF[varDF$level==li & varDF$var1==cn[ii] & is.na(varDF$var2),"SEvcov"] <- sqrt(t(varDFi$grad) %*% preVCi %*% varDFi$grad)
+            j_list <- c(j_list,list(varDFi$grad))
+          } else {
+            # off-diagonal element, so it is a covariance
+            varDF[varDF$level %in% li & varDF$var1 %in% cn[ii] & varDF$var2 %in% cn[jj],"vcov"] <- iDeltai[ii,jj]
+            varDF[varDF$level %in% li & varDF$var1 %in% cn[jj] & varDF$var2 %in% cn[ii],"vcov"] <- iDeltai[ii,jj]
+            # only if we calculate this term, this could also be iDeltai[ii,jj] == 0, but that could happen when fit
+            if(any(varDF$level==li & (( varDF$var1==cn[ii] & varDF$var2 %in% cn[jj]) | (varDF$var1==cn[jj] & varDF$var2 %in% cn[ii])))) {
+              # claculate the variance of the variance. let g = grad(iDeltai[ii,ii]) wrt the elements or iDelta and sigma2
+              # here the term is sigma2 * sum_{k=1}^{min(ii,jj)} (iDelta[ii,k] * iDelta[jj,k])
+              for(iii in 1:min(ii, jj)) {
+                # the derivative wrt iDelta[ii,k] is sigma2 * iDelta[jj,k]
+                # since diagonal elements are on varDFi with var2=NA, not var2=var1, they need special handeling
+                if(ii == iii) {
+                  varDFi$grad[(varDFi$var1 %in% rownames(iDelta)[ii] | varDFi$var2 %in% rownames(iDelta)[ii]) & is.na(varDFi$var2)] <- sigma2 * iDelta[jj,iii]
+                } else {
+                  varDFi$grad[(varDFi$var1 %in% rownames(iDelta)[ii] | varDFi$var2 %in% rownames(iDelta)[ii]) & (varDFi$var1 %in% rownames(iDelta)[iii] | varDFi$var2 %in% rownames(iDelta)[iii])] <- sigma2 * iDelta[jj,iii]
+                }
+                # the derivative wrt iDelta[jj,k] is sigma2 * iDelta[ii,k]
+                if(jj == iii) {
+                  varDFi$grad[(varDFi$var1 %in% rownames(iDelta)[jj] | varDFi$var2 %in% rownames(iDelta)[jj]) & is.na(varDFi$var2)] <- sigma2 * iDelta[ii,iii]
+                } else {
+                  varDFi$grad[(varDFi$var1 %in% rownames(iDelta)[jj] | varDFi$var2 %in% rownames(iDelta)[jj]) & (varDFi$var1 %in% rownames(iDelta)[iii] | varDFi$var2 %in% rownames(iDelta)[iii])] <- sigma2 * iDelta[ii,iii]
+                } 
+              }
+              # part of grad that is sigma
+              varDFi$grad[nrow(varDFi)] <- 2 * iDeltai[ii,jj]/sqrt(sigma2)
+              # this is the Taylor series gT %*% [VC of iDelta] %*% g
+              varDF[varDF$level==li & (( varDF$var1==cn[ii] & varDF$var2 %in% cn[jj]) | (varDF$var1==cn[jj] & varDF$var2 %in% cn[ii])),"SEvcov"] <- sqrt(t(varDFi$grad) %*% preVCi %*% varDFi$grad)
+              #build Jaccobian of gradient for use in post hoc wald test 
+              j_list <- c(j_list,list(varDFi$grad))
+            }
+          }
+        }
+      }
+      
+      jacobian <- matrix(unlist(j_list),ncol=length(j_list[[1]]),byrow=T)
+
+      var_mat_var <-  jacobian %*% preVCi %*% t(jacobian)
+      # add names - theta has names in   correct order so subset based on theta names also in this level
+      rownames(var_mat_var) <-colnames(var_mat_var)   <-  names(theta)[names(theta) %in% rownames(preVCi)]
+      j_list <-  list()  #re set for next level
+      j_mat_list[[li-1]] <- var_mat_var
+
+      # one could calculate var(residual) at every level. Prefer level-2
+      if(li==2) {
+        varDF[varDF$level==1,"SEvcov"] <- sqrt((2*sqrt(sigma2))^2*preVCi[nrow(preVCi),ncol(preVCi)])
+      }
+      varVC <- c(varVC, list(iDeltai))
+      names(varVC)[li] <- (varDF$grp[varDF$level %in% li])[1]
+    }
+    var_of_var <- bdiag(j_mat_list)
+
+    rownames(var_of_var) <- colnames(var_of_var)  <- unlist(sapply(j_mat_list,FUN=rownames))
+    #get names from names of j_mat_list 
+    varDF$vcov[varDF$grp=="Residual"] <- bhatq$sigma^2
+    varDF$fullGroup <- paste0(varDF$grp,ifelse(!is.na(varDF$var1),paste0(".",varDF$var1),""))
+    
+    vars <- varDF$vcov[is.na(varDF$var2)]
+    names(vars) <- varDF$fullGroup[is.na(varDF$var2)]
+    
+    # other output stats
+    nobs <- nrow(X)
+    names(nobs) <- "Number of obs"
+    ngroups <- c(nobs,ngrp)
+
+    #Calculate ICC 
+    var_between <- sum(varDF[which(!is.na(varDF$var1) & is.na(varDF$var2)),"vcov"])
+    var_within <- varDF$vcov[varDF$grp=="Residual"]
+    ICC <- var_between/(var_between+var_within)
+    
+    # for backwards compatibility with EdSurvey 2.2.2
+    env <- environment(bsq)
+    #covCon <- get("cConstructor", env)
+    #lmeVarDf <- get("covMat", environment(covCon))
+    covMat <- env$lmeVarDF
+    cc <- function() {
+    }
+    assign("cConstructor", value=cc, envir=env)
+
+
+    # now build the results
+    res <-list(lnlf=bsq, lnl= bhatq$lnl, coef = bhatq$b, ranefs=bhatq$ranef,
+               SE = bhatq$seBetaRobust, 
+               vars= vars,
+               theta=bhatq$theta, call=call,
+               levels=levels, CMODE=bhatq$ranef,
+               invHessian=bhatq$cov_mat, ICC=ICC,
+               is_adaptive=FALSE, sigma=bhatq$sigma, cov_mat=bhatq$varBetaRobust,
+               ngroups=ngroups, varDF=varDF, varVC=varVC,var_theta=var_of_var)
+    class(res) <- "WeMixResults"
+    return(res)
+  }
   
-  ##########################################################
-  #           2) Identify integration parameter            #
-  ##########################################################
+  
+  ##############################################################
+  # 2b) Identify integration parameter for non linear models  #
+  ##############################################################
   
   if(verbose) {
-    cat("Identifying initial integration locations (MAP) estimates for random effects.\n")
+    cat("Identifying initial integration locations estimates for random effects.\n")
   }
 
   # setup these methods that, theoretically, can be used to find the 
@@ -480,7 +729,6 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
                         qp=qp,
                         cConstructor=covarianceConstructor,
                         acc0=acc0,
-                        fast=fast,
                         mappedDefault=FALSE,
                         family=family)
   
@@ -498,7 +746,6 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
                          qp=qp,
                          cConstructor=covarianceConstructor,
                          acc0=acc0,
-                         fast=fast,
                          mappedDefault=TRUE, 
                          family=family)
 
@@ -518,7 +765,7 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   a00 <- a0 # start from previous estimates (MAP estimates) 
     
   if(verbose) {
-    cat("Starting Newton steps\n")
+    cat("Starting Newton steps.\n")
   }
   
   #select just variances that are > -3 to aviod continued adaptation below 0 
@@ -539,7 +786,12 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   stepIndQueue <- list()
   dd1 <- d1
   dd2 <- outer(dd1,dd1) 
+  iteration <- 1
   while(max(abs(dd1[c(1:k,not_0_vars)]/pmax(abs(est[c(1:k,not_0_vars)]),1e-5))) > 1E-5) { 
+    iteration <- iteration + 1
+    if (iteration > max_iteration){
+      stop("Model exceeded maximum number of iterations without converging.")
+    }
     if(length(stepIndQueue)==0) {
       stepIndQueue <- defStepsInds
     }
@@ -560,7 +812,7 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
     v[thisStepInds] <- solve(d2) %*% d1 # the Newton step
     if(verbose) {
       cat("lnl:",oldlnl, " max (relative) derivative=", max(abs(dd1[c(1:k,not_0_vars)]/pmax(abs(est[c(1:k,not_0_vars)]),1e-5))), " ")
-      cat("\ncurrent solution, gradient, and Newton step:\n")
+      cat("\nCurrent solution, gradient, and Newton step:\n")
       prnt <- cbind(oldEstimate=est, firstDeriv=dd1, proposedNewtonEstimate= est - v)
       rownames(prnt) <- names(est0)
       colnames(prnt) <- c("previous Est", "firstDeriv", "Newton Step")
@@ -576,12 +828,12 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
     while(newlnl <= oldlnl) {
       stp <- stp + 1
       if(verbose) {
-        cat("halving step\n")
+        cat("Halving step size.\n")
       }
       fact <- fact/2
       if(stp > 5 & fact > 0) {
         if(verbose) {
-          cat("reversing\n")
+          cat("Reversing step direction.\n")
         }
         ##reverse direction if more than 5 steps have been taken, avoid newtons method getting stuck 
         fact <- -1
@@ -611,7 +863,7 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
     #adapts new quadrature points if parameter keepAdapting is true  
     if(keepAdapting) {
       if(verbose) {
-        cat("adapting\n")
+        cat("Adapting random effect estimates.\n")
       }
       # adapter is never BLUE now
       if(adapter == "BLUE") {
@@ -661,7 +913,6 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
                             qp=qp,
                             cConstructor=covarianceConstructor,
                             acc0=acc0,
-                            fast=fast,
                             mappedDefault=FALSE,
                             family=family)
       
@@ -679,20 +930,19 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
                              qp=qp,
                              cConstructor=covarianceConstructor,
                              acc0=acc0,
-                             fast=fast,
                              mappedDefault=TRUE,
                              family=family)
       
       # Process of adapting stops when there the relative difference between chosen points is below threshold 
       if(max(abs(a00$omega0[[2]] - a0$omega0[[2]])/pmax(abs(a0$omega0[[2]]),1E-10)) < 1E-2) {
         if(verbose) {
-          cat("done adapting: the MAP is not changing sufficnelty.\n")
+          cat("Done adapting; the mode is not changing sufficiently.\n")
         }
         keepAdapting <- FALSE
       }
       if(keepAdapting & max(abs(d1)) <= 1E-3) {
         if(verbose) {
-          cat("done adapting: close to solution.\n")
+          cat("Done adapting: close to a solution.\n")
         }
         keepAdapting <- FALSE
       }
@@ -728,13 +978,6 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   # make est numeric
   est <- as.numeric(est)
   
-  # add final check to check whether fast method agrees with the slow (pure R, high precision)
-  if (fast) {
-    lnl <- fn0(est)
-    if (abs(lnl - fn0(est,fast0 = FALSE)) > 0.001 * abs(lnl)) {
-      warning("The likelihood function may be inaccurate, try fitting with fast=FALSE")
-    }
-  }
   # make sure the names agree with lmer
   names(est) <- names(parlme)
   
@@ -746,7 +989,7 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   
   #if any of variances  got re mapped, re calculate hessian with new position 
   if (length(need_fix_vars) > 0){
-    hessian <- getHessian(fn0,c(est[1:k],covs_and_vars))
+    hessian <- getHessian(fn0R,c(est[1:k],covs_and_vars))
   }
 
   #calculate interclass corelation (ICC) 
@@ -758,10 +1001,21 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
   ICC <- var_between/(var_between+var_within)
   
   # it is possible for the lnl to have changed slightly, so update it to avoid confusion
+  nobs <- nrow(X)
+  names(nobs) <- "Number of obs"
+  ngroups <- c(nobs,ngrp)
+  
+  #set up the variance covariance matrix 
+  varDF <- lmeVarDF[,c("grp", "var1", "var2", "vcov", "ngrp", "level")]
+  
+  varDF$vcov <- 0
+  varDF$fullGroup <- paste0(varDF$grp,ifelse(!is.na(varDF$var1),paste0(".",varDF$var1),""))
+  
+  varDF$vcov <- vars #re assign in variance from mix.  This works without formatting because only 2 level models are posisble
   
   res <- list(lnlf=fn0R, lnl=fn0(est), coef=est[1:k], vars=vars,
-              call=call, levels=levels, CMEAN=MAP,ICC=ICC, CMODE=BLUE,
-              hessian=hessian)
+              call=call, levels=levels,ICC=ICC, CMODE=BLUE,
+              invHessian=hessian,is_adaptive=TRUE,ngroups=ngroups,varDF =varDF)
   class(res) <- "WeMixResults"
   return(res)
 }
@@ -771,7 +1025,7 @@ mix <- function(formula, data, weights, nQuad=13L, run=TRUE, verbose=TRUE,
 # this function cannot find these without input estimates; it cannot be used for adapting.
 # @author Paul Bailey
 BLUE <- function(groups, y, X, levels, Z, ZFull, weights0, k, qp,
-                 covariance_constructor, verbose, nlmevar, nz, acc, fast=FALSE,
+                 covariance_constructor, verbose, nlmevar, nz, acc,
                  family) {
 
   # must define one of Qi or Qi0. Defining Qi is faster
@@ -844,7 +1098,7 @@ BLUE <- function(groups, y, X, levels, Z, ZFull, weights0, k, qp,
         nzi <- ncol(Z[[oi]]) # number of Z columns at olvl
         f <- param.lnl.quad(y, X, oi, Z, ZFull=ZFull, Qi=Qi, QiFull=QiFull,
                             omega, omegaFull=omegaFull, W=weights, k, qp,
-                            covariance_constructor, bobyqa=FALSE, verbose=TRUE, acc0=acc, fast=fast,
+                            covariance_constructor, bobyqa=FALSE, verbose=TRUE, acc0=acc,
                             mappedDefault=FALSE, family=family)
         for(ici in 1:ncol(omg0)) {
           f0 <- f(par0, top=FALSE, integralMultiplierExponent=0, integralZColumn=ici)
@@ -977,7 +1231,7 @@ MAP <- function(groups, y, X, levels, Z, ZFull, weights, k, qp,
         
       } # end while( max(abs( (omg1 - omg0) / pmax(abs(omg0),1E-5))) > 1E-3)
       if(verb) {
-        cat("MAP estimates:\n")
+        cat("Estimates:\n")
         print(omg0)
       }
       #####################################################
@@ -1033,13 +1287,21 @@ MAP <- function(groups, y, X, levels, Z, ZFull, weights, k, qp,
 # helper functions for adapter:
 
 # turn the genD output into the Cholesky of the inverse Fisher information
+#' @importFrom Matrix nearPD
 scaleQuadPoints <- function(d2, nz){
   solved <- solve(-1*d2)
+  res <- NULL
   tryCatch(res <- chol(solved),
            error= function(e) {
-             cat("Working on second inverse second derivative matrix\n")
-             print(solved)
-             stop("non-negative second derivatives with respect to the random effects at their ostensible maxima")
+             # if solved matrix is not positive definite (PD), use nearPD
+             # to find the nearest positive definite matrix.
+             # If that fails, because matrix is near negative semi-definite, use
+             # the absolute value of the diagonal as an approximation
+             tryCatch(solved <- nearPD(solved)$mat,
+                      error=function(e){
+                        solved <<- diag(abs(diag(solved)))
+                      })
+             res <<- chol(solved)
            })
   res
 }

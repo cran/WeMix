@@ -4,80 +4,96 @@
 \alias{mix}
 \title{Survey Weighted Mixed-Effects Models}
 \usage{
-mix(formula, data, weights, nQuad = 13L, run = TRUE, verbose = TRUE,
+mix(formula, data, weights, center_group = NULL, center_grand = NULL,
+  max_iteration = 10, nQuad = 13L, run = TRUE, verbose = FALSE,
   acc0 = 120, keepAdapting = FALSE, start = NULL, fast = FALSE,
-  family = NULL, center_group = NULL, center_grand = NULL)
+  family = NULL)
 }
 \arguments{
 \item{formula}{a formula object in the style of \code{lme4} that creates the model.}
 
 \item{data}{a data frame containing the raw data for the model.}
 
-\item{weights}{a character vector of weight variables found in data frame.}
-
-\item{nQuad}{an integer  number of quadrature point to evaluate on. See notes for guidelines.}
-
-\item{run}{logical; \code{TRUE} runs the model why \code{FALSE} provides partial output for debugging or testing.}
-
-\item{verbose}{logical, default \code{FALSE}; set to \code{TRUE} to print results of intermediate steps}
-
-\item{acc0}{integer, the precision of \code{mpfr}, default 120}
-
-\item{keepAdapting}{logical, set to \code{TRUE} when the adaptive quadrature should adapt after every Newton step. Defaults to TRUE. 
-\code{FALS}E should be used rarely for faster (but less accurate) results.}
-
-\item{start}{numeric vector representing the point at which the model should start optimization; takes the shape of c(coef, vars) 
-from results (see help).}
-
-\item{fast}{logical; use  c++ function for faster result. Defaults to \code{TRUE}.}
-
-\item{family}{the family; optionally used to specify generalized linear mixed models. Currently only \code{binomial(link="logit")} is supported.}
+\item{weights}{a character vector of names of weight variables found in the data frame.}
 
 \item{center_group}{a list where the name of each element is the name of the aggregation level, and the element is a formula of
-variable names to be group mean centered, for example to group mean center gender and age with in the group student:
+variable names to be group mean centered; for example to group mean center gender and age within the group student:
  \code{list("student"= ~gender+age)}, default value of NULL does not perform any group mean centering.}
 
 \item{center_grand}{a formula of variable names  to be grand mean centered, for example to center the variable education by overall mean of 
-education: \code{~education}. Default is NULL which does no 
-centering}
+education: \code{~education}. Default is NULL which does no centering.}
+
+\item{max_iteration}{a optional integer, for non-linear models fit by adaptive quadrature which limits number of iterations allowed
+before quitting. Defaults  to 10. This is used because if the liklihood surface is flat, 
+models may run for a very  long time without converging.}
+
+\item{nQuad}{an optional integer  number of quadrature points to evaluate models solved by adaptive quadrature.
+Only non-linear models are evaluated with adaptive quadrature. See notes for additional guidelines.}
+
+\item{run}{logical; \code{TRUE} runs the model while \code{FALSE} provides partial output for debugging or testing. Only applies to non-linear
+models evaluated by adaptive quadrature.}
+
+\item{verbose}{logical, default \code{FALSE}; set to \code{TRUE} to print results of intermediate steps of adaptive quadrature. Only applies to non-linear models.}
+
+\item{acc0}{integer, the precision of \code{mpfr}, default 120. Only  applies to non-linear models.}
+
+\item{keepAdapting}{logical, set to \code{TRUE} when the adaptive quadrature should adapt after every Newton step. Defaults to \code{FALSE}. 
+\code{FALSE} should be used for faster (but less accurate) results. Only applies to non-linear models.}
+
+\item{start}{optional numeric vector representing the point at which the model should start optimization; takes the shape of c(coef, vars) 
+from results (see help).}
+
+\item{fast}{logical; deprecated}
+
+\item{family}{the family; optionally used to specify generalized linear mixed models. Currently only \code{binomial(link="logit")} is supported.}
 }
 \value{
 object of class \code{WeMixResults}. 
-This is a list with objects: 
-\itemize{
-\item lnlf - function, the likelihood function 
-\item lnl - numeric, the logliklihood of the model 
-\item coef - numeric vector, the estimated coefficients of the model 
-\item vars- numeric vector, the variances
-\item call - the original call used 
-\item levels - integer, the number of levels in the model 
-\item ICC - numeric, the Intraclass Correlation Coefficient 
-\item CMEAN  - function the conditional mode function that can be called with par and omega to get the conditional mode of the likelihood function
-\item CMODE - function the conditional mean function that can be called with par and omega to get the conditional mean of the likelihood function
-\item Hessian - the second derivative of the likelihood function
-}
+This is a list with elements: 
+\item{lnlf}{function, the likelihood function.} 
+\item{lnl}{numeric, the log-likelihood of the model. }
+\item{coef}{numeric vector, the estimated coefficients of the model. }
+\item{ranefs}{the group-level random effects.}
+\item{SE}{the standard errors of the fixed effects, robust if robustSE was set to true.}
+\item{vars}{numeric vector, the random effect variances.}
+\item{theta}{the theta vector.}
+\item{call}{the original call used.}
+\item{levels}{integer, the number of levels in the model.}
+\item{ICC}{numeric, the intraclass correlation coefficient.}
+\item{CMODE}{the conditional mean of the random effects.}
+\item{invHessian}{inverse of the second derivative of the likelihood function.}
+\item{ICC}{the interclass correlation.}
+\item{is_adaptive}{logical, indicates if adaptive quadrature was used for estimation.}
+\item{sigma}{the sigma value.}
+\item{ngroups}{the number of observations in each group.}
+\item{varDF}{the variance data frame in the format of the variance data frame returned by lme4.}
+\item{varVC}{the variance-covariance matrix of the random effects.}
+\item{cov_mat}{the variance-covariance matrix of the fixed effects.}
+\item{var_theta}{the variance covariance matrix of the theta terms.}
 }
 \description{
 Implements a survey weighted mixed-effects model using the provided formula.
 }
 \details{
-Uses adaptive quadrature following the method in Stata's GLAMMM. For additional details, see the vignette 
-\emph{Weighted Mixed Models}  which provides extensive examples as well as a description of the mathematical 
-basis of the estimation procedure. The main specification also shows comparisons to model specifications in other
-common software. 
-
+Linear models are solved using a modification of the analytic solution developed by Bates and Pinheiro (1998).
+Non-linear models are solved using adaptive quadrature following the method in STATA's GLAMMM (Rabe-Hesketh & Skrondal, 2006).
+For additional details, see the vignettes \emph{Weighted Mixed Models: Adaptive Quadrature} and  \emph{Weighted Mixed Models: Analytical Solution} 
+which provide extensive examples as well as a description of the mathematical basis of the estimation procedure and comparisons to model 
+specifications in other common software. 
 Notes: 
 \itemize{
-\item Standard errors of random effect variances are estimated by the Sandwich Method; see main vignette for details. 
-\item To see the function that is maximized in the estimation of this model; see the section on "Model fitting" in the main vignette.
-\item When all weights above the individual level are 1, this is similar to a \code{lmer} and you should use \code{lme4} because it is much faster.
-\item Starting coefficients are not provided they are estimated using \code{lme4}. 
-\item When the variance of a random effect is very low (<.1), we don't estimate it because very low variances create problems with  numerical evaluation.
- In these cases, consider estimating without that RE.
- \item The model is estimated by maximum likelihood estimation, restricted maximum likelihood (REML) is not available. 
-\item To choose number of quadrature points, a balance is needed between accuracy and speed- estimation time increases quadratically 
-with the number of points chosen. In addition, an odd number of points is traditionally used. We recommend starting at 13 and increasing 
-or decreasing as needed. 
+\item Standard errors of random effect variances are robust; see vignette for details. 
+\item To see the function that is maximized in the estimation of this model, see the section on "Model Fitting" in the
+ \emph{Introduction to Mixed Effect Models With WeMix} vignette.
+\item When all weights above the individual level are 1, this is similar to a \code{lmer} and you should use \code{lme4} 
+because it is much faster.
+\item If  starting coefficients are not provided they are estimated using \code{lme4}. 
+\item For non-linear models, when the variance of a random effect is very low (<.1), WeMix doesn't estimate it, because very 
+low variances create problems with  numerical evaluation. In these cases, consider estimating without that random effect. 
+ \item The model is estimated by maximum likelihood estimation.
+\item To choose the number of quadrature points for non-linear model evaluation, a balance is needed between accuracy and
+speed; estimation time increases quadratically with the number of points chosen. In addition, an odd number of points is 
+traditionally used. We recommend starting at 13 and increasing or decreasing as needed. 
 }
 }
 \examples{
@@ -87,19 +103,25 @@ library(lme4)
 
 data(sleepstudy)
 ss1 <- sleepstudy
-doubles <- c(308, 309, 310) # subject with double obs
+#add group variables for 3 level model 
+ss1$Group <- 1
+ss1$Group <- ifelse(ss1$Subject \%in\% c(349,335,330, 352, 337, 369), 2, ss1$Group)
+
 # Create weights
-ss1$W1 <- ifelse(ss1$Subject \%in\% doubles, 2, 1)
+ss1$W1 <- ifelse(ss1$Subject \%in\% c(308, 309, 310), 2, 1)
 ss1$W2 <- 1
+ss1$W3 <- ifelse(ss1$Group == 2,2,1 )
 
 # Run random-intercept 2-level model 
-mix1 <- mix(Reaction~ Days + (1|Subject),data=ss1, weights = c("W1","W2"),
-            fast=TRUE, nQuad=13, verbose=FALSE)
+two_level <- mix(Reaction~ Days + (1|Subject),data=ss1, weights = c("W1","W2"))
 
-# Run random-intercept 2-level model with group-mean centering
-grp_centered <- mix(Reaction ~ Days + (1|Subject), data=ss1, weights = c("W1","W2"), nQuad=13,
-          fast=TRUE, center_group = list("Subject" = ~Days),
-          verbose=FALSE)
+#Run random-intercept 2-level model with group-mean centering
+grp_centered <- mix(Reaction ~ Days + (1|Subject), data=ss1, weights = c("W1","W2"),
+ center_group = list("Subject" = ~Days))
+
+ #Run three level model with random slope and intercept. 
+ three_level <- mix(Reaction~ Days + (1|Subject) + (1+Days|Group),data=ss1, 
+ weights = c("W1","W2","W3"))
 }
 }
 \author{

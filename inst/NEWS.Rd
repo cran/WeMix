@@ -1,5 +1,20 @@
 \name{NEWS}
 \title{NEWS for WeMix}
+\section{Changes in version 3.0.0}{
+
+     \subsection{MODEL EVALUATION}{
+    \itemize{
+      \item Linear models are now solved using an analytical solution based on work by Bates and Pinheiro, (1998). This solution is significantly faster than the previous adaptive quadrature method. 
+       \item Non-linear models are still evaluated using adaptive quadrature. 
+    }
+  }
+    \subsection{NEW FEATURES}{
+     \itemize{
+     \item WeMix can now fit weighted three-level linear models, see the Weighted Linear Mixed-Effects Model vignette for details. Non-linear models are still evaluated using adaptive quadrature and are limited to two-level models. 
+     \item Model evaluation is now possible using Wald tests. Wald tests allow users to test both fixed effects and random effects variances. 
+  }
+}
+}
 \section{Changes in version 2.0.0}{
   \subsection{NEW MODEL TYPES}{
     \itemize{

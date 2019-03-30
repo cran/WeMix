@@ -9,12 +9,16 @@ options(width = 85)
 
 ## ----wemix, eval=FALSE-------------------------------------------------------------
 #  # model with one random effect
-#  mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid), data=data,
-#      weights=c("pwt1", "pwt2"), nQuad=27, verbose=FALSE, fast=TRUE,run=TRUE)
+#  m1 <-  mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid), data=data,
+#      weights=c("w_fschwt","w_fstuwt"))
 #  
 #  # model with two random effects assuming zero correlation between the two
-#  mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid)+ (0+escs|schoolid), data=data,
-#      weights=c("pwt1", "pwt2"), nQuad=13, verbose=FALSE, fast=TRUE,run=TRUE)
+#  m2 <- mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid)+ (0+escs|schoolid),
+#      data=data, weights=c("w_fschwt","w_fstuwt"))
+#  
+#  #Wald tests for beta and Lambda parameters
+#  waldTest(m2,type="beta")
+#  waldTest(m2,type="Lambda")
 
 ## ----eval=FALSE--------------------------------------------------------------------
 #  library(lme4)
@@ -45,13 +49,11 @@ options(width = 85)
 #  # Group mean centering of the variable Days within group Subject
 #  group_center <- mix(Reaction ~ Days + (1|Subject), data=sleepstudy,
 #                      center_group=list("Subject"= ~Days),
-#                      weights=c("weight1L1", "weight1L2"), nQuad=13,
-#                      verbose=FALSE, fast=TRUE,run=TRUE)
+#                      weights=c("weight1L1", "weight1L2"))
 #  
 #  # Grand mean centering of the variable Days
 #  grand_center <- mix(Reaction ~ Days + (1|Subject), data=sleepstudy,
-#                      center_grand=~Days,weights=c("weight1L1", "weight1L2"),
-#                      nQuad=13, verbose=FALSE, fast=TRUE,run=TRUE)
+#                      center_grand=~Days,weights=c("weight1L1", "weight1L2"))
 
 ## ----Stata, eval=FALSE-------------------------------------------------------------
 #  import delimited "PISA2012_USA.csv"
@@ -113,31 +115,86 @@ options(width = 85)
 #  
 #  
 
+## ----M_plus_one, eval=FALSE--------------------------------------------------------
+#  DATA: FILE= pisa_2012_with_dummies.csv;
+#  
+#  VARIABLE: NAMES= id schoolid pv1math escs pwt1 pwt2 s29q03d1 s29q03d2
+#  s29q03d4 int c14q02d1 c14q02d2 c14q02d4 s04q01d2;
+#  CLUSTER = schoolid;
+#  WITHIN = escs s29q03d1 s29q03d2 s29q03d4 c14q02d1 c14q02d2 c14q02d4 s04q01d2;
+#  
+#  USEVARIABLES= schoolid pv1math escs  s29q03d1 s29q03d2
+#  s29q03d4 c14q02d1 c14q02d2 c14q02d4 s04q01d2 pwt1 pwt2;
+#  
+#  WEIGHT IS pwt1;
+#  BWEIGHT = pwt2;
+#  wtscale=unscaled;
+#  bwtscale=unscaled;
+#  
+#  ANALYSIS: TYPE = TWOLEVEL;
+#  
+#  MODEL:
+#  %WITHIN%
+#  pv1math ON escs s29q03d1 s29q03d2 s29q03d4 c14q02d1 c14q02d2 c14q02d4 s04q01d2;
+#  %BETWEEN%
+#  pv1math;
+#  
+
+## ----M_plus, eval=FALSE------------------------------------------------------------
+#  
+#  DATA: FILE=pisa_2012_with_dummies.csv;
+#  
+#  VARIABLE: NAMES= id schoolid pv1math escs pwt1 pwt2 s29q03d1 s29q03d2
+#  s29q03d4 int c14q02d1 c14q02d2 c14q02d4 s04q01d2 escs2;
+#  CLUSTER = schoolid;
+#  WITHIN = escs s29q03d1 s29q03d2 s29q03d4 c14q02d1 c14q02d2 c14q02d4 s04q01d2;
+#  
+#  USEVARIABLES= schoolid pv1math escs  s29q03d1 s29q03d2
+#  s29q03d4 c14q02d1 c14q02d2 c14q02d4 s04q01d2 pwt1 pwt2;
+#  
+#  WEIGHT IS pwt1;
+#  BWEIGHT = pwt2;
+#  wtscale=unscaled;
+#  bwtscale=unscaled;
+#  
+#  ANALYSIS: TYPE = TWOLEVEL RANDOM;
+#  
+#  MODEL:
+#  %WITHIN%
+#  pv1math on s29q03d1 s29q03d2 s29q03d4 c14q02d1 c14q02d2 c14q02d4 s04q01d2;
+#  slope | pv1math ON escs ;
+#  %BETWEEN%
+#  pv1math with slope @0
+#  
+#  
+
 ## ----data_prep, eval=FALSE---------------------------------------------------------
 #  library(EdSurvey)
 #  
 #  #read in data
 #  cntl <- readPISA([path], countries = "USA")
 #  om <- getAttributes(cntl, "omittedLevels")
-#  data <- getData(cntl, c("schoolid","pv1math","st29q03","sc14q02","st04q01","escs","w_fschwt","w_fstuwt"), omittedLevels = FALSE, addAttributes = FALSE)
+#  data<- getData(cntl,c("schoolid","pv1math","st29q03","sc14q02","st04q01",
+#                       "escs","w_fschwt","w_fstuwt"),
+#                omittedLevels = FALSE,   addAttributes = FALSE)
 #  
-#  #prepare weights
-#  data$sqw <- data$w_fstuwt^2
-#  sumsqw <- aggregate(sqw ~ schoolid, data = data, sum)
-#  sumw <- aggregate(w_fstuwt ~ schoolid, data = data, sum)
-#  data$sumsqw <- sapply(data$schoolid, function(s) sumsqw$sqw[sumsqw$schoolid == s])
-#  data$sumw <- sapply(data$schoolid, function(s) sumw$w_fstuwt[sumw$schoolid == s])
-#  data$pwt1 <- data$w_fstuwt * (data$sumw / data$sumsqw)
+#  
+#  #prepare conditional weights for use in other softwares
 #  data$pwt2 <- data$w_fschwt
+#  data$pwt1 <- data$w_fstuwt / data$w_fschwt
+#  
 #  
 #  # Remove NA and omitted Levels
 #  om <- c("Invalid","N/A","Missing","Miss",NA,"(Missing)")
-#  for (i in 1:ncol(tempData)) {
-#    tempData <- tempData[!tempData[,i] %in% om,]
+#  for (i in 1:ncol(data)) {
+#      data <- data[!data[,i] %in% om,]
 #  }
 #  
 #  #relevel factors for model
 #  data$st29q03 <- relevel(data$st29q03,ref="Strongly agree")
 #  data$sc14q02 <- relevel(data$sc14q02,ref="Not at all")
+#  
+#  write.csv(data, file="PISA2012_USA.csv")
+#  
 #  
 

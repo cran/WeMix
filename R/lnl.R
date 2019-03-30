@@ -23,13 +23,12 @@
 # @param bobyqa boolean, indicating whether bobyqa should be used for optimization, default false
 # @param verbose boolean, should additional output ususally used for debugging be printed, default true
 # @param acc0 numeric, integer the accuracy for mfpr 
-# @param fast boolean, should faster RCPP function be used 
 # @param mappedDefault boolean, when mapped is TRUE then variances are used as is, otherwise small (less than one) variances are exponentiated. This argument sets the default for a parameter of the returned function.
 param.lnl.quad <- function(y, X, levels, Z, ZFull, Qi, QiFull, omega, omegaFull,
                            W, k, qp, cConstructor, bobyqa=FALSE, verbose=TRUE,
-                           acc0, fast, mappedDefault=FALSE, family=NULL) {
+                           acc0, mappedDefault=FALSE, family=NULL) {
   function(par, acc=acc0, top=TRUE, integralMultiplierExponent=NULL,
-           integralZColumn=1, mapped=mappedDefault, fast0 = fast) {
+           integralZColumn=1, mapped=mappedDefault) {
     # par- the random and fixed effects and variance 
     # acc -  numeric, accuracy of the mpfr
     # top - whether the top level (ie overall likelihood rather than group likelihood) is to be returned. 
@@ -42,38 +41,13 @@ param.lnl.quad <- function(y, X, levels, Z, ZFull, Qi, QiFull, omega, omegaFull,
     #                        only one random effect at a time can be integrated over, and the integration happens at the top level
     # mapped- parameter to be passed to covariance constructor which indicates wether very small variances are supposed to
     # mapped to exp(var-1) space 
-    # fast0- true runs the faster c++ implementation and is recommended 
     #
     
     parBeta <- par[1:k]
     par <- par[ -(1:k)]
     parC <- cConstructor(par, mapped=mapped)
     yyh0 <- X %*% parBeta
-    if (fast0) {
-      # if parameter fast is called use RCPP function for speed up. Use of this option is recommended
-      res <- calc_lin_lnl_quad_fast(y = y, 
-                                    yhat = yyh0,
-                                    level = levels,
-                                    Z = Z,
-                                    Qi = Qi,
-                                    omega = omega,
-                                    W = lapply(W, "data.matrix"),
-                                    C = parC,
-                                    qp = qp,
-                                    omegaFull = omegaFull,
-                                    QiFull = QiFull,
-                                    ZFull = ZFull,
-                                    atPoint = FALSE,
-                                    top = top,
-                                    verbose = verbose,
-                                    integralMultiplierExponent=ifelse(is.null(integralMultiplierExponent),
-                                                                      0,integralMultiplierExponent),
-                                    integralZColumn=integralZColumn)
-      if (all(dim(res) == 1)) {
-        res <- res[1,1]
-      }
-    } else {
-      # run slower pure R implementation if parameter fast is false 
+
       res <- calc.lin.lnl.quad(y=y, yhat=yyh0, level=levels, Z=Z, ZFull=ZFull,
                                Qi=Qi, QiFull=QiFull,
                                omega=omega, omegaFull=omegaFull, W=W,
@@ -82,7 +56,7 @@ param.lnl.quad <- function(y, X, levels, Z, ZFull, Qi, QiFull, omega, omegaFull,
                                integralMultiplierExponent=integralMultiplierExponent,
                                integralZColumn=integralZColumn,
                                family=family)
-    } # closes if (fast) {
+
     
     res
   } # ends internal function call - this is what the top level function returns
@@ -165,6 +139,20 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
   Qil <- Qi[[level]]
   QiFulll <- QiFull[[level]]
   
+  # replace aggregate() calls with matrix modification for speed. declaring arrays and matrices 
+  ni_Wl <- table ((Wlm1$indexp1)) 
+  ntot <- length (Wlm1$indexp1)
+  Wl_indices <- unique (Wlm1$indexp1)
+  k_indices = length (Wl_indices)
+  # create block diagonal matrix for later multiplication
+  diagM1 <- matrix(0,k_indices,sum(ni_Wl))
+  runtot = 0
+  # fill block diagonal matrix 
+  for (ii in 1:k_indices) { 
+    diagM1[ii,] <- c(rep (0,runtot), rep (1,ni_Wl[ii]), rep (0,ntot - ni_Wl[ii] - runtot)) 
+    runtot = runtot + ni_Wl[ii]
+  }
+  
   ### 2) Create grid of integration points
   
   #Calcuate traditional quadrature points
@@ -227,7 +215,11 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
                                    family=family)
     } # ends the else part of the if (level==2 ) conditional 
     if(atPoint) {
-      agg <- aggregate(ll ~ indexp1, Wlm1, sum)
+      # replace aggregate() calls with matrix modification for speed. actual matrix multiplication
+      agg2 <- diagM1 %*% Wlm1$ll
+      agg <- cbind.data.frame(Wl_indices, agg2)
+      #the above two lines replicate what was originally done with this line below
+      #agg <- aggregate(ll ~ indexp1, Wlm1, sum) 
       colnames(agg) <- c("index", "ll")
       if(!top) {
         return(agg$ll)
@@ -248,9 +240,17 @@ calc.lin.lnl.quad <- function(y, yhat, level, Z, Qi, omega, W, C, qp,
       } else {
         aggPrior <- Wlm1NonD[,c("indexp1", "g_weight")]
       }
-      # add likelihood for all observation in each group 
-      agg <- aggregate(ll ~ indexp1, Wlm1, sum)
+      
+      # add likelihood for all observation in each group
+      
+      # replace aggregate() calls with matrix modification for speed. actual matrix multiplication
+      agg2 <- diagM1 %*% Wlm1$ll
+      agg <- cbind.data.frame(Wl_indices, agg2)
+      #the above two lines replicate what was originally done with this line below
+      #agg <- aggregate(ll ~ indexp1, Wlm1, sum) 
+      colnames(agg) <- c("indexp1", "ll")
       names(agg)[!names(agg)%in%"indexp1"] <- "lli"
+      
       agg <- merge(agg, aggPrior, by="indexp1")
       # exponetiate to reverse the log manipulations done earlier 
       # using log manipulation is important for maintaining precision when likelihood is very small 

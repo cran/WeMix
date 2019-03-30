@@ -198,4 +198,3 @@ getGrad <- function(func, x, inputs=1:length(x), highAccuracy=TRUE) {
   }
   return(grad)
 }
-
