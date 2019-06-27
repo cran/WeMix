@@ -2,6 +2,7 @@
 #' @param formula  a formula object in the style of \code{lme4} that creates the model.
 #' @param data  a data frame containing the raw data for the model.
 #' @param weights a character vector of names of weight variables found in the data frame.
+#' @param cWeights logical, set to \code{TRUE} to use conditional weights. Otherwise, \code{mix} expects unconditional weights.
 #' @param center_group a list where the name of each element is the name of the aggregation level, and the element is a formula of
 #'  variable names to be group mean centered; for example to group mean center gender and age within the group student:
 #'   \code{list("student"= ~gender+age)}, default value of NULL does not perform any group mean centering. 
@@ -20,8 +21,8 @@
 #' @param acc0 integer, the precision of \code{mpfr}, default 120. Only  applies to non-linear models. 
 #' @param start optional numeric vector representing the point at which the model should start optimization; takes the shape of c(coef, vars) 
 #' from results (see help). 
-#' @param fast logical; deprecated
 #' @param family the family; optionally used to specify generalized linear mixed models. Currently only \code{binomial(link="logit")} is supported.
+#' @param fast logical; deprecated
 #' @description
 #' Implements a survey weighted mixed-effects model using the provided formula. 
 #' @details
@@ -72,38 +73,13 @@
 #' \item{varVC}{the variance-covariance matrix of the random effects.}
 #' \item{cov_mat}{the variance-covariance matrix of the fixed effects.}
 #' \item{var_theta}{the variance covariance matrix of the theta terms.}
-#' @examples 
-#' \dontrun{
-#' library(WeMix)
-#' library(lme4)
-#' 
-#' data(sleepstudy)
-#' ss1 <- sleepstudy
-#' #add group variables for 3 level model 
-#' ss1$Group <- 1
-#' ss1$Group <- ifelse(ss1$Subject %in% c(349,335,330, 352, 337, 369), 2, ss1$Group)
-#'
-#' # Create weights
-#' ss1$W1 <- ifelse(ss1$Subject %in% c(308, 309, 310), 2, 1)
-#' ss1$W2 <- 1
-#' ss1$W3 <- ifelse(ss1$Group == 2,2,1 )
-#' 
-#' # Run random-intercept 2-level model 
-#' two_level <- mix(Reaction~ Days + (1|Subject),data=ss1, weights = c("W1","W2"))
-#' 
-#' #Run random-intercept 2-level model with group-mean centering
-#' grp_centered <- mix(Reaction ~ Days + (1|Subject), data=ss1, weights = c("W1","W2"),
-#'  center_group = list("Subject" = ~Days))
-#'
-#'  #Run three level model with random slope and intercept. 
-#'  three_level <- mix(Reaction~ Days + (1|Subject) + (1+Days|Group),data=ss1, 
-#'  weights = c("W1","W2","W3"))
-#' }
+#' @example \man\examples\mix.R
 #' @author Paul Bailey, Claire Kelley, and Trang Nguyen 
 #' @export
-mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_iteration=10,nQuad=13L, run=TRUE, verbose=FALSE,
-                acc0=120, keepAdapting=FALSE, start=NULL, fast=FALSE,
-                family=NULL) {
+mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
+                center_grand=NULL, max_iteration=10, nQuad=13L, run=TRUE,
+                verbose=FALSE, acc0=120, keepAdapting=FALSE, start=NULL,
+                fast=FALSE, family=NULL) {
   #############################################
   #                   Outline:                #   
   #     1) data preparation and reshaping     #
@@ -165,8 +141,8 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
     )
   }
 
-  #set up initial values 
-  adapter <- "MAP" #initial function evaluation through MAP, BLUE estimator can be used post hoc
+  # set up initial values 
+  adapter <- "MAP" # initial function evaluation through MAP, BLUE estimator can be used post hoc
   weights0 <- weights # keep track of incomming weights column names
   # correctly format acc0
   acc0 <- round(acc0)
@@ -177,7 +153,7 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
   lformula <- lFormula(formula=formula, data=data)
   # get the unparsed group names, this could include, e.g. a:b
   unparsedGroupNames <- names(lformula$reTrms$cnms)
-  # a function to parse these
+  # a function to parse group names
   groupParser <- function(groupi) {
     # have base::all.vars parse the group name
     all.vars(formula(paste0("~",groupi)))
@@ -188,7 +164,7 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
   # reorder data by groups (in order to make Z matrix obtained from lme easier to work with)
   data <- data[do.call(order, lapply(rev(groupNames), function(colN) data[,colN])),]
   
-  if(!is.null(center_group)){
+  if(!is.null(center_group)) {
     #first add nested variables to data set if they exist, this is to handle / and : in group vars
     if (any(grep(":|/",names(center_group)))) {
       nested_groups <- names(center_group)[grep(":|/",names(center_group))]
@@ -200,24 +176,24 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
     if(!all(names(center_group) %in% names(data))){
       stop("Not all centering group variables are found in the data set. ")
     } else {
-      for(name in names(center_group)){ #loop is included here for centering at >2 levels 
-        #need to get variable names from model matrix becasue of factor transformations
-        #remove the first element becasue it is the intercept
-        
-        #identify level - it is the minimum group to account for : and / specified groups
+      for(name in names(center_group)) {
+        # loop is included here for centering at >2 levels 
+        # we need to get variable names from model matrix becasue of factor transformations
+        # remove the first element becasue it is the intercept
+
+        # identify level--it is the minimum group to account for : and / specified groups
         lev <- min(which(groupNames %in% unlist(strsplit(name,":|/"))))
 
         X <- model.matrix(center_group[[name]],data=data)
         vars <- colnames(X)[-1]
         X <- cbind(X,data[,c(name,weights0[lev])])
         
-        #subtract group average from value and put back into data 
-        #including scaling factor that accoutns for the fact weights might not sum to 0 l
+        # subtract group average from value and put back into data 
+        # including scaling factor that accoutns for the fact weights might not sum to 0 l
         data[,vars] <- sapply(vars, function(var){X[,var] - ave(X[,var]*X[,weights0[lev]],X[,name])/(nrow(X)/sum(X[,weights0[lev]]))})
-        
-      }
-    } #end else for loop mean centering varibles 
-  }
+      } # end for(name in names(center_group))
+    } # end else for loop mean centering varibles 
+  } # end if(!is.null(center_group))
   
    
   if(!is.null(center_grand)){
@@ -244,7 +220,7 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
     }
     lme <- glmer(formula, data, family=family)
   }
-  #Get the Z (random effects) matrix from LME 
+  # Get the Z (random effects) matrix from LME 
   model_matrix <- getME(lme,"mmList")
   
   z_groups <- names(model_matrix) #get full names random effects whcih include both variable and group level
@@ -253,9 +229,25 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
   all_groups <- names(summary(lme)$ngrps)
   groupNames <- all_groups  
   
-  # store the full sample weights in wgts0
+  # store the full sample weights (or cWeights) in wgts0
   wgts0 <- data[,weights]
-  
+  if(cWeights) {
+    for(i in (ncol(wgts0)-1):1) {
+      wgts0[,i] <- wgts0[,i] * wgts0[,i+1]
+    }
+  } else {
+    cwarn <- FALSE
+    for(i in (ncol(wgts0)-1):1) {
+      if(any(wgts0[,i] < wgts0[,i+1])) {
+        cwarn <- TRUE
+      }
+    }
+    if(cwarn) {
+      message(paste0("Some weights are larger at higher levels. This could be the result of scaling. However, if the weights are conditional, consider setting ",dQuote("cWeights=TRUE"), "."))
+    }
+  }
+  # check if weights are potentially conditional
+
   # create columns for any interactions coming from the formula
   # this will be mainly used in 3 level models and is included for forward compatability 
   missingGroupVars <- all_groups[!all_groups %in% names(data)] #find which group names are not in data set (ie composite groups)
@@ -291,7 +283,6 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
     Z <- c(Z, list(Z_i))
   }
 
-  
   # find number of random effects classes
   nz <- list(0) # there are not REs at level 1
   for(i in 1:length(Z)) {
@@ -319,11 +310,22 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
     if(i > 1) {
       # for levels >1 data frame indexed by group name and values represent weights 
       df$index <- data[,all_groups[i-1]]
+      # return 0 var if there is only one unit
+      rvar <- function(x) {
+        if(length(x) <=1) {
+          return(0)
+        } else {
+          return(var(x))
+        }
+      }
+      agg <- aggregate(w ~ index, data=df, FUN=rvar)
+      if(any(agg$w > sqrt(.Machine$double.eps))) {
+        stop(paste0("Some level-", i+1, " weights vary within group."))
+      }
       df <- df[!duplicated(df$index),]
     }
     weights[[i]] <- df
   }
-
   #get the y variable name from the formula 
   y_label <- as.character(formula[[2]])
   
@@ -396,31 +398,31 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
   
   # these are the realized y/X vector/matrix
   y <- data[,c(y_label)]
-  X <- getME(lme,"X")
+  X <- getME(lme, "X")
   
   ##############################################################
   #   2a) Pass linear models to symbolic integration method    #
   ##############################################################
   if(is.null(family)){
     #get the raw Z matrix
-    Z <- getME(lme,"Z")
+    Z <- getME(lme, "Z")
     #extract Zt from lme and transpose to Z  
-    temp_Z <- getME(lme,"Ztlist")
+    temp_Z <- getME(lme, "Ztlist")
     #find out which level each applies to 
-    z_levels <- unique(lmeVarDF[ lmeVarDF$fullGroup%in%names(temp_Z),c("fullGroup","level")])
+    z_levels <- unique(lmeVarDF[lmeVarDF$fullGroup%in%names(temp_Z),c("fullGroup","level")])
     Zlist <- list()
     for (i in 2:levels){
       z_names <- z_levels[z_levels$level==i,"fullGroup"]
       Zlist[[i-1]] <-t(as.matrix((Reduce(rbind,temp_Z[z_names]))))
     }
     #seperating into single random effects using the pointers
-    pointers <- getME(lme,"Gp")
+    pointers <- getME(lme, "Gp")
 
     #find levels at which z applies
     grp_level <- lmeVarDF$level
     names(grp_level) <- lmeVarDF$grp
     
-    ref_comps <- names(getME(lme,"cnms"))
+    ref_comps <- names(getME(lme, "cnms"))
     Zlevels <- unique(grp_level[ref_comps])
     
     weights_list <- lapply(weights, FUN=function(x){x$w})
@@ -433,17 +435,17 @@ mix <- function(formula, data, weights,center_group=NULL,center_grand=NULL,max_i
     
     # if level >2 then set up conditional weigths
     weights_list_cond <- weights_list
-    # give group_id good names; these are the name.names names, necessary for : and / to work
+    # give group_id good names; necessary for : and / to work
     colnames(group_id) <- names(all_groups)
     if(levels > 2 ){
       cWeights <- cbind(group_id, data[,weights0])
-      #names(cWeights) <- colnames(cWeights)
       for (level in 1:(levels-1)){
         cWeights[,weights0[level]] <- cWeights[,weights0[level]]/cWeights[,weights0[level + 1]]
       }
       weights_list_cond[[1]] <- cWeights[,weights0[1]] #first level weights dont get grouped 
         
       for (level in 2:levels){
+        # grab the first element (in FUN) and then grab that value (in [,2])
         weights_list_cond[[level]] <- aggregate(formula(paste0(weights0[level],"~",names(all_groups)[level-1])), data=cWeights, FUN=function(x) x[1])[,2]
       }
     }

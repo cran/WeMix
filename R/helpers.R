@@ -1,4 +1,5 @@
 # This helper funciton returns just the coefficient from the WeMix results object.
+#' @method coef WeMixResults
 #' @export
 coef.WeMixResults <- function(object, ...) {
   object$coef
@@ -297,11 +298,10 @@ waldTest <- function(fittedModel, type=c("beta", "Lambda") , coefs=NA, hypothesi
   return(res)
 }  
 
-#' This function calculates robust standard errors using the sandwich estimator of the standard errors  
-#' following Rabe-Hesketh & Skrondal 2006. For linear models, robust standard errors are returned from the main estimation function. 
-#' This function is only used for post-hoc estimation for non-linear models. 
+# This function calculates robust standard errors using the sandwich estimator of the standard errors  
+# following Rabe-Hesketh & Skrondal 2006. For linear models, robust standard errors are returned from the main estimation function. 
+# This function is only used for post-hoc estimation for non-linear models. 
 #' @importFrom numDeriv jacobian
-#' @keywords internal
 makeSandwich <- function(fittedModel) {
   #make same estimator based on 
 
@@ -330,4 +330,10 @@ makeSandwich <- function(fittedModel) {
   return(list(VC=SE,se=se)) 
  
 
+}
+
+# TRUE if x has no zeros in it. False if it does have a zero.
+# useful for finding columns with non-zero entries in lapply
+nozero <- function(x) {
+  any(x != 0)
 }

@@ -15,22 +15,16 @@ sleepstudyU <- sleepstudy
 sleepstudyU$weight1L1 <- 1
 sleepstudyU$weight1L2 <- 1
 
-
 context("The model runs")
-test_that("WeMix::mix function agrees with lme4::lmer", {
-
+test_that("The model runs", {
   system.time(wm0 <- mix(Reaction ~ Days + (1|Subject), data=sleepstudyU, weights=c("weight1L1", "weight1L2")))
   lme1 <- lmer(Reaction ~ Days + (1|Subject), data=sleepstudyU, REML=FALSE)
   expect_equal(wm0$lnl, -897.039321502613, tolerance=tolerance*897) # value from  lmer(Reaction ~ Days + (1 | Subject), data=sleepstudy, REML=FALSE)
-  
   expect_equal(unname(c(wm0$coef)), unname(fixef(lme1)), tolerance=tolerance)
   expect_equal(unname(wm0$theta), unname(lme1@theta), tolerance=tolerance)
-  # agrees with lme4
-  # check coef
   expect_equal(coef(wm0),
                expected = getME(lme1, "fixef"),
                tolerance = tolerance)
-  # check vars
   lmevars1 <- data.frame(summary(lme1)$varcor)$sdcor
   expect_equal(unname(wm0$vars),
                expected = unname(lmevars1)^2,
@@ -44,30 +38,25 @@ test_that("WeMix::mix function agrees with lme4::lmer", {
                      "lnl"          = -897.03932)
   expect_equal(unname(coef(wm0)),
                expected = unname(gllamm_model1[1:2]),
-               tolerance = abs(tolerance * gllamm_model1[1:2]))
+               tolerance = abs(tolerance))
   expect_equal(unname(wm0$vars),
                expected = unname(gllamm_model1[3:4]),
-               tolerance = tolerance * wm0$vars)
+               tolerance = tolerance)
   expect_equal(unname(wm0$lnl),
                expected=unname(gllamm_model1[5]),
-               tolerance=abs(tolerance*wm0$lnl))
+               tolerance=abs(tolerance))
   
-  #expect_equal(unname(summary(lme1)$coefficients[,2]), unname(sqrt(diag(wm0$cov_mat))),tolerance = tolerance)
-
   sleepstudy2 <- sleepstudy
   sleepstudy2$block <- rep(1:6,each=30)
-  #initial weights are 1
   sleepstudy2$weight1L1 <- sleepstudy2$weight1L2 <- sleepstudy2$weight1L3 <- 1
-
+  # change Reaction by the artifical block we just added
   sleepstudy2$Reaction <- sleepstudy2$Reaction + sleepstudy2$block*20
   names(sleepstudy2) <- gsub("weight1L","pwt",names(sleepstudy2))
   lmr <- lmer(Reaction ~ Days + (1|Subject) + (1|block), data=sleepstudy2, REML=FALSE)
   mm <- mix(Reaction ~ Days + (1|Subject) + (1|block), data=sleepstudy2, weights=c("pwt1","pwt2","pwt3"))
-  #expect_equal(unname(summary(lmr)$coefficients[,2]), unname(sqrt(diag(mm$cov_mat))),tolerance = tolerance)
   expect_equal(unname(mm$lnl),
                expected=unname(logLik(lmr)[[1]]),
                tolerance=tolerance)
-
 })
 
 
@@ -93,12 +82,10 @@ test_that("Agrees with lme4 3,handles missing data", {
 })
  
 context("Mean Centering Matches HLM results")
-test_that("mean centering agrees with HLM", {
+test_that("Mean Centering Matches HLM results", {
  wm1 <- mix(Reaction ~ Days + (1|Subject), data=sleepstudyU, weights=c("weight1L1", "weight1L2"), nQuad=13,center_group=list("Subject"= as.formula(~Days)), verbose=FALSE)
  expect_equal(unname(wm1$coef), c(298.507892, 10.467286), tolerance=1E-1)
  expect_equal(wm1$lnl, -897.0393, tolerance=tolerance*897) # value from  lmer(Reaction ~ Days + (1 | Subject), data=sleepstudy, REML=FALSE)
-
- 
 })
 
 ss <- sleepstudy
@@ -134,14 +121,14 @@ test_that("GLM works: Binomial", {
   #full test for binomial 
   bi_1 <- mix(bin~Days + (1|Subject), data=ss1, family=binomial(link="logit"), verbose=FALSE,
               weights=c("W1", "W2"), nQuad=13)
-  expect_equal(unname(bi_1$coef), c(-3.3448,.5928),tolerance=1E-3)
-  expect_equal(bi_1$lnl,-93.751679,tolerance=1E-5*abs(bi_1$lnl))
+  expect_equal(unname(bi_1$coef), c(-3.3448,.5928), tolerance=1E-3)
+  expect_equal(bi_1$lnl, -93.751679, tolerance=1E-5)
   sum_bi <-  summary(bi_1)
   expect_is(summary(bi_1), "summaryWeMixResults")
 })
 
-context("repeating is the same as weighting: L1 replicate vs weighting")
-test_that("L1 replicate vs weighting", {
+context("Repeating is the same as weighting: L1 replicate vs weighting")
+test_that("Repeating is the same as weighting: L1 replicate vs weighting", {
   # mix for L1, weighted
   wmeL1W <- mix(formula=Reaction ~ Days + (1 | Subject), data=ss1,
                 weights=c("W1", "W2"))
@@ -264,8 +251,8 @@ test_that("L2 replicate vs weighting", {
   expect_equal(wmeL2D$lnl, -1055.34690957995, tolerance=2E-7)
 })
 
-context("repeating is the same as weighting: L1 replicate vs weighting, 2 REs")
-test_that("L1 replicate vs weighting, 2 REs", {
+context("Repeating is the same as weighting: L1 replicate vs weighting, 2 REs")
+test_that("Repeating is the same as weighting: L1 replicate vs weighting, 2 REs", {
   # mix for L1, weighted, 2 REs
   wmeL1WRE2 <- mix(formula=Reaction ~ Days + (1 | Subject) + (0+Days|Subject),
                    data=ss1, weights=c("W1", "W2"), nQuad=13, run=FALSE, verbose=FALSE)
@@ -286,7 +273,7 @@ ssB$W2 <- 1
 ssB$W1 <- 1
 
 context("Zero variance estimate")
-test_that("simple model with zero variance estimate", {
+test_that("Zero variance estimate", {
   skip_on_cran()
   # this has 0 variance estimate in lmer
   lmeB <- lmer(Reaction ~ Days + (1|Subject), data=ssB, REML=FALSE)
@@ -295,6 +282,20 @@ test_that("simple model with zero variance estimate", {
   expect_equal(mixB$lnl, as.numeric(logLik(lmeB)), tol=1e-5)
   expect_equal(coef(mixB), fixef(lmeB), tol=1e-5)
   expect_equal(unname(mixB$vars[length(mixB$vars)]), unname(lmeB@devcomp$cmp["sigmaML"]^2), tol=1e-5)
+
+  ss1 <- sleepstudy
+  #add group variables for 3 level model 
+  ss1$Group <- 1
+  ss1$Group <- ifelse(ss1$Subject %in% c(349,335,330, 352, 337, 369), 2, ss1$Group)
+
+  # Create weights
+  ss1$W1 <- ifelse(ss1$Subject %in% c(308, 309, 310), 2, 1)
+  ss1$W2 <- 1
+  ss1$W3 <- ifelse(ss1$Group == 2, 2, 1)
+
+  #Run three level model with random slope and intercept. 
+  three_level <- mix(Reaction~ Days + (1|Subject) + (1+Days|Group), data=ss1, weights = c("W1","W2","W3"))
+  expect_is(three_level, "WeMixResults")
 })
 
 context("Unweighted three level model")
@@ -308,7 +309,7 @@ test_that("Unweighted three level model", {
   sleepstudy2$w1 <- 1 
   sleepstudy2$w2 <- 1
   sleepstudy2$w3 <- 1
-  wm0 <- mix(Reaction ~ Days + (1|Subject) + (0+Days|Subject) + (1 | Group), data=sleepstudy2, weights=c("w1", "w2","w3"), nQuad=13, verbose=FALSE, run=TRUE)
+  wm0 <- mix(Reaction ~ Days + (1|Subject) + (0+Days|Subject) + (1 | Group), data=sleepstudy2, weights=c("w1", "w2","w3"), verbose=FALSE, run=TRUE)
   lm0 <- lmer(Reaction ~ Days + (1|Subject) + (0+Days|Subject) + (1 | Group), data=sleepstudy2,REML=FALSE)
   # check vars
   lmevars1 <- data.frame(summary(lm0)$varcor)$sdcor
@@ -365,7 +366,7 @@ test_that("Three level model slash and colon", {
   expect_error(wm0 <- mix(Reaction ~ Days + (1|Subject/Group), data=ss2, weights=c("w1", "w2", "w3")))
 })
 
-
+# check the format of summary output
 context("Summary output format")
 test_that("summary output format", {
   skip_on_cran()
@@ -487,11 +488,9 @@ test_that("Weighted three level model", {
   gR$Group <- "11"
   sleepstudy2 <- rbind(sleepstudy2, gR)
 
-
   ss2$w1 <- w1
   ss2$w2 <- rep(w2,each=10)
   ss2$w3 <- ifelse(ss2$Subject %in% c("308", "333", "350", "351", "370", "371"),2,1)
-
  
   # lmr for reference
   lmr <- lmer(Reaction ~ Days + (1|Subject) + (1|Group), data=sleepstudy2, REML=FALSE)
@@ -533,9 +532,8 @@ test_that("Test for Wald Tests using  ", {
   waldTest(wm2,type="Lambda",coefs = c("Subject.Days.(Intercept)","Subject.Days" ))
 })
 
-
 context("Complex weighted three level model")
-test_that("Weighted three level model with correlated random effects", {
+test_that("Complex weighted three level model", {
   skip_on_cran()
   sleepstudy2 <- sleepstudy
   sleepstudy2$Group <- 1
@@ -627,67 +625,67 @@ test_that("Weighted three level model with correlated random effects", {
 }) 
 
 context("PISA tests")
-test_that("Weighted three level model with correlated random effects", {
+test_that("PISA tests", {
   skip_on_cran()
-  library(EdSurvey)
+  require(EdSurvey)
+  #read in data 
   cntl <- readPISA(paste0(edsurveyHome, "PISA/2012"), countries = "USA", verbose=FALSE)
- 
   om <- getAttributes(cntl, "omittedLevels")
-  d1 <- getData(cntl,c("schoolid","pv1math","st29q03","sc14q02","st04q01", "escs","w_fschwt","w_fstuwt"), omittedLevels = FALSE, addAttributes = FALSE)
- 
+  data <- getData(cntl,c("schoolid","pv1math","st29q03","sc14q02","st04q01",
+                         "escs","w_fschwt","w_fstuwt"), 
+                  omittedLevels = FALSE, addAttributes = FALSE)
+  
+  # Remove NA and omitted Levels
   om <- c("Invalid","N/A","Missing","Miss",NA,"(Missing)")
-  for (i in 1:ncol(d1)) {
-    d1 <- d1[!d1[,i] %in% om,]
+  for (i in 1:ncol(data)) {
+    data <- data[!data[,i] %in% om,] 
   }
-  #relevel factors for model
-  d1$st29q03 <- relevel(d1$st29q03,ref="Strongly agree")
-  d1$sc14q02 <- relevel(d1$sc14q02,ref="Not at all")
-  
-  # Single variable simple model with random intercept
-  m0 <- mix(pv1math ~ escs + (1|schoolid), data=d1, weights=c("w_fstuwt", "w_fschwt"))
-  #test coefficients and SE 
-  m0bref <- matrix(c(469.5649, 5.494396, 26.15699, 2.207268), ncol=2, byrow=TRUE)
-  expect_equal(unname(summary(m0)$coef[,1:2]), m0bref, tol=2E-7)
-  
-  #test variance
-  m0vref <- matrix(c(1357.39, 286.2226, 5427.444, 155.9573), ncol=2, byrow=TRUE)
-  expect_equal(unname(m0$vars), m0vref[,1], tol=1E-5)
 
-  
-  #test lnl 
-  expect_equal(m0$lnl ,-12823184.31, tol=1E-5)
+  #relevel factors for model 
+  data$st29q03 <- relevel(data$st29q03,ref="Strongly agree")
+  data$sc14q02 <- relevel(data$sc14q02,ref="Not at all")
   
   # Multivariate model with random intercept
-  m1 <- mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid), data=d1, weights=c("w_fstuwt", "w_fschwt"))
+  m1 <- mix(pv1math ~ st29q03 + sc14q02 + st04q01 + escs + (1|schoolid), data=data, weights=c("w_fstuwt", "w_fschwt"))
   m1bref <- matrix(c(486.8037, 7.777978, -11.1083, 5.699849,-19.25533, 5.455594,-41.5422, 6.864339, -21.34052, 17.06059, -11.78236, 12.82083, -26.91253, 7.657342, 9.507693, 2.986006, 25.56825, 2.117479), ncol=2, byrow=TRUE)
   expect_equal(unname(summary(m1)$coef[,1:2]), m1bref,tol=1E-5)
-  # cbind(summary(m1)$coef[,1:2], m1bref)
   
   #test variance
-  m1vref <- c(1413.856,5264.799)
+  m1vref <- c(1413.81, 5264.799)
   expect_equal(unname(m1$vars), m1vref, tol=1E-5)
   
   #test lnl 
   expect_equal(m1$lnl ,-12789991.91, tol=1E-5)
-
   
+  # var of var
+  m1s <- summary(m1)
+  # this is a regression test. See vignette for range of reasonable results.
+  expect_equal(m1s$varsmat[,5], c(327.5015, 152.4944), tol=1e-4)
+  
+  data$pwt2 <- data$w_fschwt
+  data$pwt1 <- data$w_fstuwt / data$w_fschwt
+  # check conditional weights
+  m1c <- mix(pv1math ~ st29q03 + sc14q02 + st04q01 + escs + (1|schoolid), data=data, weights=c("pwt1", "pwt2"), cWeight=TRUE)
+  # call should disagree, so remove that
+  m1$call <- NULL
+  m1c$call <- NULL
+  expect_equal(m1, m1c, tol=1e-5)
   #test complicated model
-  m2 <- mix(pv1math ~ st29q03 + sc14q02 + st04q01 + escs + (1|schoolid) + (0+escs|schoolid), data=d1, weights=c("w_fstuwt", "w_fschwt"))
+  m2 <- mix(pv1math ~ st29q03 + sc14q02 + st04q01 + escs + (1|schoolid) + (0+escs|schoolid), data=data, weights=c("w_fstuwt", "w_fschwt"))
   expect_equal(m2$lnl ,-12741522.65, tol=1E-5)
     
   m2bref <- matrix(c(483.8881, 7.405499, -10.62803, 5.490497, -17.30314, 5.372283, -38.70806, 6.768197, -20.06462, 15.58282, -12.59165, 12.66878, -39.94083, 7.239317, 10.29371, 3.028518, 28.0161, 2.563144), ncol=2, byrow=TRUE)
   expect_equal(unname(summary(m2)$coef[,1:2]), m2bref,tol=1E-5)
   
   #test  SE of variance based on mixed
-  se_var2 <- summary(m2)$vars[,2]
-  expect_equal(se_var2 ,c(296.97,68.566, 137.74), tol=10)
-  
+  se_var2 <- summary(m2)$vars[,2] # regression test, ideal unclear
+  expect_equal(se_var2 ,c(287.89, 67.99, 137.70), tol=3e-5)
   
   #test variance
-  m2vref <- c(1354.74,370.3304,4967.357)
-  expect_equal(unname(m2$vars), m2vref, tol=1E-5)
+  m2vref <- c(1354.71,370.33,4967.36)
+  expect_equal(unname(m2$vars), m2vref, tol=2E-5)
 
-  suppressWarnings(m3 <- mix(pv1math ~ st29q03 + sc14q02 + st04q01 + escs+ (1+escs|schoolid), data=d1, weights=c("w_fstuwt", "w_fschwt")))
+  suppressWarnings(m3 <- mix(pv1math ~ st29q03 + sc14q02 + st04q01 + escs+ (1+escs|schoolid), data=data, weights=c("w_fstuwt", "w_fschwt")))
   expect_equal(m3$lnl, -12741285.44518178, tol=1E-5)
 
   m3bref <- matrix(c(483.5955, 7.494755,
@@ -696,4 +694,126 @@ test_that("Weighted three level model with correlated random effects", {
                      10.31113, 3.02734,
                      27.63378, 2.435956), ncol=2, byrow=TRUE)
   expect_equal(unname(summary(m3)$coef[,1:2]), m3bref, tol=1E-5)
+})
+
+context("Model Matrix has a hard time with")
+test_that("Model Matrix has a hard time with", {
+  skip_on_cran()
+  require(EdSurvey)
+  sdf <- readNAEP(system.file("extdata/data", "M36NT2PM.dat", package = "NAEPprimer"))
+  gg <- getData(varnames=c("composite", "dsex", "b017451", "scrpsu", "origwt", "smsrswt"), data=sdf, returnJKreplicates=FALSE)
+  gg2 <- gg[gg$origwt > 0 & gg$smsrswt > 0,]
+  suppressMessages(m4 <- mix(mrpcm2 ~ dsex + b017451 + (1|scrpsu), data=gg2, weights=c("origwt", "smsrswt")))
+  expect_equal(m4$lnl, -81882.3634148408, tol=1e-5)
+  expect_equal(m4$coef, c(`(Intercept)` = 270.571817625202, dsexFemale = -2.14907551600309, `b017451Once every few weeks` = 3.84433128452533, `b017451About once a week` = 9.19954009166631, `b0174512 or 3 times a week` = 12.8701977366809, `b017451Every day` = 6.29635843233831))
+  expect_equal(m4$SE, c(`(Intercept)` = 1.14859092700564, dsexFemale = 0.636207386283148, `b017451Once every few weeks` = 1.05190060207538, `b017451About once a week` = 0.986062663493941, `b0174512 or 3 times a week` = 1.00366545196335, `b017451Every day` = 1.10858750669702))
+  m4varDF <- structure(list(grp = c("scrpsu", "Residual"),
+                            var1 = c("(Intercept)", NA),
+                            var2 = c(NA_character_, NA_character_),
+                            vcov = c(300.695102536901, 969.501918646696),
+                            ngrp = c(672, 16331),
+                            level = c(2, 1),
+                            SEvcov = c(25.0004604746421, 16.2937862202021),
+                            fullGroup = c("scrpsu.(Intercept)", "Residual")),
+                       row.names = c(NA, -2L),
+                       class = "data.frame")
+  expect_equal(m4$varDF, m4varDF, tol=1e-5)
+})
+
+
+
+context("examples run")
+test_that("examples run", {
+  skip_on_cran()
+  ss1 <- sleepstudy
+
+  # Create weights
+  ss1$W1 <- ifelse(ss1$Subject %in% c(308, 309, 310), 2, 1)
+  ss1$W2 <- 1
+
+  # Run random-intercept 2-level model 
+  two_level <- mix(Reaction ~ Days + (1|Subject), data=ss1, weights=c("W1", "W2"))
+  expect_is(two_level, "WeMixResults")
+
+  #Run random-intercept 2-level model with group-mean centering
+  grp_centered <- mix(Reaction ~ Days + (1|Subject), data=ss1,
+                      weights = c("W1", "W2"),
+                      center_group = list("Subject" = ~Days))
+  expect_is(grp_centered, "WeMixResults")
+
+  #Run three level model with random slope and intercept. 
+  #add group variables for 3 level model 
+  ss1$Group <- 3
+  ss1$Group <- ifelse(as.numeric(ss1$Subject) %% 10 < 7, 2, ss1$Group)
+  ss1$Group <- ifelse(as.numeric(ss1$Subject) %% 10 < 4, 1, ss1$Group)
+  # level-3 weights
+  ss1$W3 <- ifelse(ss1$Group == 2, 2, 1)
+
+  three_level <- mix(Reaction ~ Days + (1|Subject) + (1+Days|Group), data=ss1, 
+                     weights=c("W1", "W2", "W3"))
+  expect_is(three_level, "WeMixResults")
+
+  # Conditional Weights
+  # use vignette example
+  library(EdSurvey)
+
+  #read in data 
+  downloadPISA("~/", year=2012)
+  cntl <- readPISA("~/PISA/2012", countries="USA")
+  data <- getData(cntl,c("schoolid","pv1math","st29q03","sc14q02","st04q01",
+                         "escs","w_fschwt","w_fstuwt"), 
+                  omittedLevels=FALSE, addAttributes=FALSE)
+
+  # Remove NA and omitted Levels
+  om <- c("Invalid", "N/A", "Missing", "Miss", NA, "(Missing)")
+  for (i in 1:ncol(data)) {
+    data <- data[!data[,i] %in% om,]
+  }
+
+  #relevel factors for model 
+  data$st29q03 <- relevel(data$st29q03, ref="Strongly agree")
+  data$sc14q02 <- relevel(data$sc14q02, ref="Not at all")
+
+  # run with unconditional weights
+  m1u <-  mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid), data=data, 
+              weights=c("w_fstuwt", "w_fschwt"))
+  expect_is(m1u, "WeMixResults")
+
+  # conditional weights
+  data$pwt2 <- data$w_fschwt
+  data$pwt1 <- data$w_fstuwt / data$w_fschwt
+
+  # run with conditional weights
+  m1c <-  mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid), data=data, 
+              weights=c("pwt1", "pwt2"), cWeights=TRUE)
+  expect_is(m1c, "WeMixResults")
+  # the results are, up to rounding, the same in m1u and m1c, only the calls are different
+
+})
+
+context("Model with top level groups that have entirely 0 columns in Z")
+test_that("Model with top level groups that have entirely 0 columns in Z", {
+  skip_on_cran()
+  require(EdSurvey)
+  ee <- readECLS_K2011(paste0(edsurveyHome, "ECLS_K/2011/"), verbose=FALSE)
+  gg <- getData(c("x2rscalk4", "childid", "s2_id", "w1_2p0", "x3sumsh", "p1chldbk","p2freerd"), data=ee, omittedLevels=FALSE, returnJKreplicates=FALSE)
+  gg$frpl <- ifelse(gg$p2freerd %in% c("1: FREE LUNCH", "2: REDUCED PRICE LUNCH"), 1, 0)
+  #gg$frpl <- ifelse(gg$p2freerd %in% c("1: FREE LUNCH", "2: REDUCED PRICE LUNCH"), 1, 0)
+  gg$w1 <- gg$w1_2p0
+  gg$w2 <- 1
+  gg$n <- ave(gg$s2_id,gg$s2_id, FUN=length)
+  gg2 <- gg[!is.na(gg$x2rscalk4) & gg$w1>0 & !is.na(gg$p1chldbk) & gg$n > 15 & gg$s2_id < 1200,]
+  m3 <- mix(x2rscalk4 ~ p1chldbk + frpl + (1+frpl|s2_id), data=gg2, weights=c("w1", "w2"), verbose=FALSE)
+  expect_equal(m3$lnl, -1487373.35690271, tol=1e-5)
+  expect_equal(m3$coef, c(`(Intercept)`= 65.3997808905506, p1chldbk= 0.0277046025800543, frpl= -4.31148740276502), tol=1e-5)
+  expect_equal(m3$SE, c(`(Intercept)`= 1.00104768903161, p1chldbk= 0.00598831966294215, frpl= 1.09613407378124), tol=1e-5)
+  varDF0 <- structure(list(grp = c("s2_id", "s2_id", "s2_id", "Residual"), 
+                           var1 = c("(Intercept)", "frpl", "(Intercept)", NA),
+                           var2 = c(NA, NA, "frpl", NA), vcov = c(72.566994157529, 97.9237563712147, -49.598003315857, 132.632563255804),
+                           ngrp = c(97, 97, 97, 1520),
+                           level = c(2, 2, 2, 1),
+                           SEvcov = c(13.0086037063617, 17.7142865251415, 12.4863072054752, 7.49244294118361),
+                           fullGroup = c("s2_id.(Intercept)", "s2_id.frpl", "s2_id.(Intercept)", "Residual")),
+                       row.names = c(NA, -4L), class = "data.frame")
+  expect_equal(m3$varDF, varDF0, tol=1e-5)
 })

@@ -10,11 +10,11 @@ options(width = 85)
 ## ----wemix, eval=FALSE-------------------------------------------------------------
 #  # model with one random effect
 #  m1 <-  mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid), data=data,
-#      weights=c("w_fschwt","w_fstuwt"))
+#      weights=c("w_fstuwt", "w_fschwt"))
 #  
 #  # model with two random effects assuming zero correlation between the two
 #  m2 <- mix(pv1math ~ st29q03 + sc14q02 +st04q01+escs+ (1|schoolid)+ (0+escs|schoolid),
-#      data=data, weights=c("w_fschwt","w_fstuwt"))
+#      data=data, weights=c("w_fstuwt", "w_fschwt"))
 #  
 #  #Wald tests for beta and Lambda parameters
 #  waldTest(m2,type="beta")
@@ -37,7 +37,6 @@ options(width = 85)
 #  bi_1 <- mix(over300~ Days + (1|Subject),data=ss1,
 #              family=binomial(link="logit"),verbose=FALSE,
 #              weights=c("W1", "W2"),nQuad=13)
-#  
 
 ## ----Centering, eval=FALSE---------------------------------------------------------
 #  library(lme4)  #to use example sleep study data
@@ -91,29 +90,24 @@ options(width = 85)
 #  q01d2 escs [pw = pwt1] || schoolid: escs, pweight (pwt2)
 
 ## ----sas, eval=FALSE---------------------------------------------------------------
-#  proc import datafile="PISA2012_USA.csv"
-#       out=pisa_data
-#       dbms=csv
-#       replace;
-#  run;
+#  PROC IMIPORT DATAFILE="PISA2012_USA.csv"
+#       OUT=pisa_data DBMS=csv REPLACE;
+#  RUN;
 #  
-#  proc glimmix data=pisa_data method=quadrature(qpoints=27) empirical=classical NOREML;
-#    nloptions GCONV=1E-10 technique=TRUREG;
-#      class  sc14q02(ref='Not at all') st04q01(ref='Female') st29q03(ref='Strongly agree');
-#      model pv1math = escs sc14q02 st04q01 st29q03/  obsweight=pwt1 solution;
-#      random INT/subject=schoolid weight=pwt2;
-#  run;
+#  PROC GLIMMIX DATA=pisa_data METHOD=quadrature(qpoints=27) EMPIRICAL=classical NOREML;
+#    NLOPTIONS GCONV=1E-10 TECHNIQUE=TRUREG;
+#    CLASS  sc14q02(REF='Not at all') st04q01(REF='Female') st29q03(REF='Strongly agree');
+#    MODEL pv1math = escs sc14q02 st04q01 st29q03/ OBSWEIGHT=pwt1 SOLUTION;
+#    RANDOM INT/subject=schoolid WEIGHT=pwt2;
+#  RUN;
 #  
 #  
-#  proc glimmix data=pisa_data method=quadrature(qpoints=13) empirical=classical NOREML;
-#    nloptions GCONV=1E-10 technique=TRUREG;
-#    class  sc14q02(ref='Not at all') st04q01(ref='Female') st29q03(ref='Strongly agree');
-#    model pv1math = escs sc14q02 st04q01 st29q03/ obsweight=pwt1 solution;
-#    random intercept escs/subject=schoolid   weight=pwt2;
-#  run;
-#  
-#  
-#  
+#  PROC GLIMMIX DATA=pisa_data METHOD=quadrature(qpoints=13) EMPIRICAL=classical NOREML;
+#    NLOPTIONS GCONV=1E-10 TECHNIQUE=TRUREG;
+#    CLASS  sc14q02(REF='Not at all') st04q01(REF='Female') st29q03(REF='Strongly agree');
+#    MODEL pv1math = escs sc14q02 st04q01 st29q03/ OBSWEIGHT=pwt1 SOLUTION;
+#    RANDOM intercept escs/subject=schoolid WEIGHT=pwt2;
+#  RUN;
 
 ## ----M_plus_one, eval=FALSE--------------------------------------------------------
 #  DATA: FILE= pisa_2012_with_dummies.csv;
@@ -138,10 +132,8 @@ options(width = 85)
 #  pv1math ON escs s29q03d1 s29q03d2 s29q03d4 c14q02d1 c14q02d2 c14q02d4 s04q01d2;
 #  %BETWEEN%
 #  pv1math;
-#  
 
 ## ----M_plus, eval=FALSE------------------------------------------------------------
-#  
 #  DATA: FILE=pisa_2012_with_dummies.csv;
 #  
 #  VARIABLE: NAMES= id schoolid pv1math escs pwt1 pwt2 s29q03d1 s29q03d2
@@ -165,36 +157,30 @@ options(width = 85)
 #  slope | pv1math ON escs ;
 #  %BETWEEN%
 #  pv1math with slope @0
-#  
-#  
 
 ## ----data_prep, eval=FALSE---------------------------------------------------------
 #  library(EdSurvey)
 #  
 #  #read in data
-#  cntl <- readPISA([path], countries = "USA")
-#  om <- getAttributes(cntl, "omittedLevels")
-#  data<- getData(cntl,c("schoolid","pv1math","st29q03","sc14q02","st04q01",
-#                       "escs","w_fschwt","w_fstuwt"),
-#                omittedLevels = FALSE,   addAttributes = FALSE)
+#  downloadPISA("~/", year=2012)
+#  cntl <- readPISA("~/PISA/2012", countries="USA")
+#  data <- getData(cntl,c("schoolid", "pv1math", "st29q03", "sc14q02", "st04q01",
+#                         "escs", "w_fschwt", "w_fstuwt"),
+#                  omittedLevels=FALSE, addAttributes=FALSE)
 #  
-#  
-#  #prepare conditional weights for use in other softwares
+#  # conditional weights
 #  data$pwt2 <- data$w_fschwt
 #  data$pwt1 <- data$w_fstuwt / data$w_fschwt
-#  
 #  
 #  # Remove NA and omitted Levels
 #  om <- c("Invalid","N/A","Missing","Miss",NA,"(Missing)")
 #  for (i in 1:ncol(data)) {
-#      data <- data[!data[,i] %in% om,]
+#    data <- data[!data[,i] %in% om,]
 #  }
 #  
-#  #relevel factors for model
-#  data$st29q03 <- relevel(data$st29q03,ref="Strongly agree")
-#  data$sc14q02 <- relevel(data$sc14q02,ref="Not at all")
+#  # relevel factors for model
+#  data$st29q03 <- relevel(data$st29q03, ref="Strongly agree")
+#  data$sc14q02 <- relevel(data$sc14q02, ref="Not at all")
 #  
 #  write.csv(data, file="PISA2012_USA.csv")
-#  
-#  
 
