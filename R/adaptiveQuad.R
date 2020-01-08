@@ -397,7 +397,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   C <- covarianceConstructor(est0[-(1:k)])
   
   # these are the realized y/X vector/matrix
-  y <- data[,c(y_label)]
+  y <- as.numeric(eval(formula[[2]],data))
   X <- getME(lme, "X")
   
   ##############################################################

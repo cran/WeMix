@@ -96,12 +96,9 @@ analyticSolve <- function(y, X, Zlist, Zlevels, weights, weightsC=weights, group
     lambda_i  <- matrix(0,nrow=n_ref_lev,ncol=n_ref_lev)
     row.names(lambda_i) <- lmeVarDF[lmeVarDF$level==l & is.na(lmeVarDF$var2),"var1"]
     colnames(lambda_i) <- lmeVarDF[lmeVarDF$level==l & is.na(lmeVarDF$var2),"var1"]
-    
     #get only v for this level
     group <- lmeVarDF[lmeVarDF$level==l ,"grp"][1]
     v_lev <- v0[grep(paste0("^",group,"."),names(v0))]
-    
-    
     #fill in lambda_i from theta using names
     for (vi in 1:length(v_lev)){
       row_index <- strsplit(names(v_lev[vi]),".",fixed=TRUE)[[1]][2]
@@ -486,7 +483,7 @@ analyticSolve <- function(y, X, Zlist, Zlevels, weights, weightsC=weights, group
         lnli2[gi] <- 2*lndetLzg[[gi]]/-2 + sum(sum(W0[sgi]))*log(2*pi*sigma^2)/-2 + sum(wres[sgi]^2)/sigma^2/-2 + sum(ures[unlist(uvl[[gi]])]^2)/sigma^2/-2
         # zero index for this level, used in Zlist argument a few lines down
         ind0 <- c(0,cumsum(lapply(Zlist, ncol)))
-        bwi <- analyticSolve(y=y[sgi], X[sgi,,drop=FALSE],
+        bwi <- analyticSolve(y=y[sgi], X=X[sgi,,drop=FALSE],
                   Zlist=lapply(1:length(Zlist), function(lvl) {
                       cols <- sort(unlist(uvl[[gi]][[lvl]])) - ind0[lvl]
                       tryCatch(Zlist[[lvl]][sgi, cols, drop=FALSE], error=function(e){stop("Could not build Zlist.")})
@@ -498,6 +495,7 @@ analyticSolve <- function(y, X, Zlist, Zlevels, weights, weightsC=weights, group
                   lmeVarDF=lmeVarDFi,
                   v0=v,
                   lndetLz0=lndetLzg[[gi]])
+
         tryCatch(lnli[gi] <- bwi(v=v, verbose=verbose, beta=b, sigma=sigma, robustSE=FALSE)$lnl,
                  error= function(e) {
                    lnli[gi] <<- NA
@@ -698,7 +696,15 @@ rkfnS <- function(qr_R) {
   d <- Matrix::diag(qr_R)
   # add 1 to tolerance to account for imprecision in .Machine$double.eps
   tol <- (length(d)+1) * .Machine$double.eps
-  abs(d) > max(abs(d)) * tol
+  proposed <- abs(d) > max(abs(d)) * tol
+  # the condition is a bit different for a "matrix" than a "Matrix"
+  if(is.matrix(qr_R)) {
+    # increase until condition number of remaining matrix agrees with rank from base package
+    while(sum(proposed) > 0 & rcond(qr_R[proposed,proposed]) <= .Machine$double.eps) {
+      proposed[proposed][which.min(abs(d[proposed]))] <- FALSE
+    }
+  }
+  return(proposed)
 }
 
 # a wrapper for analyticSolve that allows it to be called from an optimizer. Takes the same arguments as analyticSolve. 

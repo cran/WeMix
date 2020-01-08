@@ -629,7 +629,16 @@ test_that("PISA tests", {
   skip_on_cran()
   require(EdSurvey)
   #read in data 
-  cntl <- readPISA(paste0(edsurveyHome, "PISA/2012"), countries = "USA", verbose=FALSE)
+  if(!exists("edsurveyHome")) {
+    if (Sys.info()[['sysname']] == "Windows") {
+      edsurveyHome <- "C:/EdSurveyData/"
+    } else {
+      edsurveyHome <- "~/EdSurveyData/"
+    }
+  }
+
+  downloadPISA(root=edsurveyHome, years=2012, cache=FALSE, verbose=FALSE)
+  cntl <- readPISA(file.path(edsurveyHome, "PISA/2012"), countries = "USA", verbose=FALSE)
   om <- getAttributes(cntl, "omittedLevels")
   data <- getData(cntl,c("schoolid","pv1math","st29q03","sc14q02","st04q01",
                          "escs","w_fschwt","w_fstuwt"), 
@@ -696,6 +705,7 @@ test_that("PISA tests", {
   expect_equal(unname(summary(m3)$coef[,1:2]), m3bref, tol=1E-5)
 })
 
+
 context("Model Matrix has a hard time with")
 test_that("Model Matrix has a hard time with", {
   skip_on_cran()
@@ -757,9 +767,15 @@ test_that("examples run", {
   # use vignette example
   library(EdSurvey)
 
+  if(!exists("edsurveyHome")) {
+    if (Sys.info()[['sysname']] == "Windows") {
+      edsurveyHome <- "C:/EdSurveyData/"
+    } else {
+      edsurveyHome <- "~/EdSurveyData/"
+    }
+  }
   #read in data 
-  downloadPISA("~/", year=2012)
-  cntl <- readPISA("~/PISA/2012", countries="USA")
+  cntl <- readPISA(file.path(edsurveyHome,"PISA/2012"), countries="USA", verbose=FALSE)
   data <- getData(cntl,c("schoolid","pv1math","st29q03","sc14q02","st04q01",
                          "escs","w_fschwt","w_fstuwt"), 
                   omittedLevels=FALSE, addAttributes=FALSE)
@@ -816,4 +832,41 @@ test_that("Model with top level groups that have entirely 0 columns in Z", {
                            fullGroup = c("s2_id.(Intercept)", "s2_id.frpl", "s2_id.(Intercept)", "Residual")),
                        row.names = c(NA, -4L), class = "data.frame")
   expect_equal(m3$varDF, varDF0, tol=1e-5)
+})
+
+context("TIMSS tests")
+test_that("TIMSS tests", {
+  skip_on_cran()
+  require(EdSurvey)
+
+  if(!exists("edsurveyHome")) {
+    if (Sys.info()[['sysname']] == "Windows") {
+      edsurveyHome <- "C:/EdSurveyData/"
+    } else {
+      edsurveyHome <- "~/EdSurveyData/"
+    }
+  }
+  # original version by Christian Kjeldsen
+  downloadTIMSS(root=edsurveyHome, years=2015, cache=FALSE, verbose=FALSE)
+  dnk15 <- readTIMSS(file.path(edsurveyHome,"/TIMSS/2015"), countries="dnk", gradeLvl=4, verbose=FALSE)
+  dnk15dat <- getData(data=dnk15, varnames=c("atbg01", "asbgsb", "mmat", "asbghrl", "matwgt", "idschool","schwgt"))
+  dnk15dat <- subset(dnk15dat, matwgt > 0 & schwgt > 0)
+  dnk15dat$cwt2_math <- dnk15dat$schwgt
+  dnk15dat$cwt1_math <- dnk15dat$matwgt/dnk15dat$schwgt
+  # variance estimation requires a matrix singular by base standards but not Matrix standards
+  mm2 <- mix(asmmat01 ~ atbg01 + asbghrl + (1|idschool), data = dnk15dat, weights=c("matwgt","schwgt"))
+  mm2ref <- structure(c(375.385865901528, -0.553178832770401, 14.9395466422176, 
+                        13.8062259868586, 0.378593770436568, 0.994526615735166,
+                        27.1896075190162, -1.46114087437972, 15.0217665428432),
+                      .Dim = c(3L, 3L), .Dimnames = list(c("(Intercept)", "atbg01", "asbghrl"),
+                                                         c("Estimate", "Std. Error", "t value")))
+  expect_equal(summary(mm2)$coef, mm2ref)
+  # glm Wald test
+  mm1 <- mix(I(asmmat01>450) ~ atbg01 + (1|idschool), data=dnk15dat, weights=c("cwt1_math","cwt2_math"),
+             cWeights=TRUE, family=binomial(link="logit"))
+  mm1s <- summary(mm1)
+  mm1w <- waldTest(fittedModel=mm1, type="beta", coefs="atbg01")
+ 
+  expect_equal(mm1s$coef[2,3]^2, mm1w$Wald)
+
 })

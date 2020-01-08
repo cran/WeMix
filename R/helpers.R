@@ -168,8 +168,8 @@ print.summaryWeMixResults <- function(x, ...) {
 #' @importFrom stats pchisq 
 #' @export
 waldTest <- function(fittedModel, type=c("beta", "Lambda") , coefs=NA, hypothesis=NA) {
-    type <- match.arg(type,c("beta", "Lambda"))
-    if (type == "Lambda"){
+  type <- match.arg(type,c("beta", "Lambda"))
+  if (type == "Lambda"){
     # names of the coefs 
     if (all(is.na(coefs))) {
       coef_names <- names(fittedModel$theta)
@@ -241,53 +241,59 @@ waldTest <- function(fittedModel, type=c("beta", "Lambda") , coefs=NA, hypothesi
       ha[v1,v2] <- fittedModel$theta[names(var)]
       ha[v2,v1] <- fittedModel$theta[names(var)]
     }
-    } else {  # wald test for beta values
-      # names of the coefs 
-      if  (all(is.na(coefs))) {
-        coef_names <- names(fittedModel$coef)
-      } else {
-        coef_names <- coefs
-      } 
-      
-      #number of parameters 
-      q <- length(coef_names)
-      
-      #total coefficients 
-      p <- length(fittedModel$coef)
-      
-      # this block sets up  R the hypothesis matrix 
-      # it has a row for each parameter to be tested (q) 
-      # it has a column for each parameter that exists in the model
-      R <-  matrix(0,nrow=q,ncol=p)
-      rownames(R) <- coef_names
-      colnames(R) <- names(fittedModel$coef)
-      
-      # Fill in one for each  each coefficient to  be tested in the relevant row
-      for (coef in coef_names){
-        if (any(!coef_names %in% names(fittedModel$coef))){stop("Names of coefficients to test must be the same as names of beta in the fitted model.")}
-        R[coef,coef] <- 1
-      }
-      
-      #this block sets up the r vector of hypothesized values for theta
-      if (all(is.na(hypothesis))){
-        r <- rep(0,q)
-      } else {
-        if (length(hypothesis) != q){stop("Length of hypothesized values must be same as number of coefficients to test.")}
-        r <- hypothesis
-      }
-      
-      # Covariance matrix of beta
+  } else { # end if (type == "Lambda")
+    # wald test for beta values
+    # names of the coefs 
+    if  (all(is.na(coefs))) {
+      coef_names <- names(fittedModel$coef)
+    } else {
+      coef_names <- coefs
+    } 
+    
+    #number of parameters 
+    q <- length(coef_names)
+    
+    #total coefficients 
+    p <- length(fittedModel$coef)
+    
+    # this block sets up  R the hypothesis matrix 
+    # it has a row for each parameter to be tested (q) 
+    # it has a column for each parameter that exists in the model
+    R <-  matrix(0,nrow=q,ncol=p)
+    rownames(R) <- coef_names
+    colnames(R) <- names(fittedModel$coef)
+    
+    # Fill in one for each  each coefficient to  be tested in the relevant row
+    for (coef in coef_names){
+      if (any(!coef_names %in% names(fittedModel$coef))){stop("Names of coefficients to test must be the same as names of beta in the fitted model.")}
+      R[coef,coef] <- 1
+    }
+    
+    #this block sets up the r vector of hypothesized values for theta
+    if (all(is.na(hypothesis))){
+      r <- rep(0,q)
+    } else {
+      if (length(hypothesis) != q){stop("Length of hypothesized values must be same as number of coefficients to test.")}
+      r <- hypothesis
+    }
+    
+    # Covariance matrix of beta
+    if(fittedModel$is_adaptive){
+      # this is a glm
+      VC <- makeSandwich(fittedModel) # calculates the sandwhich estimator of variance 
+      V_hat <- VC$VC[1:(q+1), 1:(q+1)]
+    } else {
       V_hat <- fittedModel$cov_mat
-     
-      #estimates 
-      ests <- fittedModel$coef
-      
-      #Make hypothesis vectors to return
-      h0 <- ests[coef_names]
-      ha <- r 
-      names(ha) <- coef_names
-      
-  } #end if (type == "beta")
+    }
+   
+    #estimates 
+    ests <- fittedModel$coef
+    
+    #Make hypothesis vectors to return
+    h0 <- ests[coef_names]
+    ha <- r 
+    names(ha) <- coef_names
+  } #end else for if (type == "beta")
   
   #Wald test using the following equation
   #W = (Rb − r)' (RVR') ^ −1 (Rb − r)

@@ -1,5 +1,14 @@
 \name{NEWS}
 \title{NEWS for WeMix}
+\section{Changes in version 3.1.3}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item The method used to determine the rank of a matrix was brought into agreement with the \code{base} package when the matrix was a base matrix. Prior to this it was possible to get an error from a call to \code{mix} that should have returned. Now these calls to \code{mix} should return. Thanks to Christian Kjeldsen of Aarhus University, Danish School of Education, for pointing this issue out.
+      \item The Wald test now works for generalized linear models instead of throwing an error. Thanks to Christian Kjeldsen for pointing this issue out as well.
+    }
+  }
+}
+
 \section{Changes in version 3.1.0}{
   \subsection{NEW FEATURES}{
     \itemize{
