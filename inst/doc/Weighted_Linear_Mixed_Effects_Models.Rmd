@@ -8,6 +8,7 @@ header-includes:
   - \usepackage{bm}
   - \usepackage{amsmath} 
   - \usepackage[utf8]{inputenc}
+
 output:
   pdf_document:
     fig_caption: yes
@@ -279,12 +280,12 @@ Now, finding the integral of this over $\bm{\upsilon}$,
 \begin{align}
 \mathcal{L}(\bm{\beta}, \bm{\theta}, \sigma^2; \bm{y})&=\int f_{\bm{y}, \bm{\upsilon}} \left(\bm{y}, \bm{\upsilon}, \bm{\beta}, \bm{\theta}, \sigma^2 \right)  d\bm{\upsilon} \\
 &=\int \frac{1}{\left(2\pi\sigma^2\right)^{\frac{\sum_i \bm{\Omega}_{ii} + \sum_j \bm{\Psi}_{jj}}{2}}} \exp \left[- \frac{ r^2(\bm{\theta}, \hat{\bm{\beta}}, \hat{\bm{\upsilon}}) - \left| \left| \bm{R}_{22}(\bm{\beta} - \hat{\bm{\beta}})\right| \right|^2 - \left| \left| \bm{R}_{11}(\bm{\upsilon} - \hat{\bm{\upsilon}}) + \bm{R}_{12}(\bm{\beta} - \hat{\bm{\beta}}) \right| \right|^2}{2\sigma^2} \right] d\bm{\upsilon} \\
-&=\frac{1}{\left(2\pi\sigma^2\right)^{\frac{\sum_i \bm{\Omega}_{ii} + \sum_j \bm{\Psi}_{jj}}{2}}} \exp \left[- \frac{ r^2(\bm{\theta}, \hat{\bm{\beta}}, \hat{\bm{\upsilon}}) - \left| \left| \bm{R}_{22}(\bm{\beta} - \hat{\bm{\beta}})\right| \right|^2 }{2\sigma^2}\right] \int \exp \left[- \frac{\left| \left|  \bm{R}_{11}(\bm{\upsilon} - \hat{\bm{\upsilon}}) + \bm{R}_{12}(\bm{\beta} - \hat{\bm{\beta}}) \right| \right|^2}{2\sigma^2} \right] d\bm{\upsilon} \label{eq:tmpL}
+&=\frac{1}{\left(2\pi\sigma^2\right)^{\frac{\sum_i \bm{\Omega}_{ii} + \sum_j \bm{\Psi}_{jj}}{2}}} \exp \left[- \frac{ r^2(\bm{\theta}, \hat{\bm{\beta}}, \hat{\bm{\upsilon}}) - \left| \left| \bm{R}_{22}(\bm{\beta} - \hat{\bm{\beta}})\right| \right|^2 }{2\sigma^2}\right] \int \exp \left[- \frac{\left| \left|  \bm{R}_{11}(\bm{\upsilon} - \hat{\bm{\upsilon}}) + \bm{R}_{12}(\bm{\beta} - \hat{\bm{\beta}}) \right| \right|^2}{2\sigma^2} \right] d\bm{\upsilon} \label{eq:tmpLA}
 \end{align}
 Notice that while the unweighted integral has $n_z$ dimensions, this weighted integral has $\sum_j \bm{\Psi}_{jj}$ dimensions---the number of (population) individuals values to integrate out.
 \begin{align}
 \mathcal{L}(\bm{\beta}, \bm{\theta}, \sigma^2; \bm{y})
-&=\frac{1}{\left(2\pi\sigma^2\right)^{\frac{\sum_i \bm{\Omega}_{ii}}{2}}} \exp \left[- \frac{ r^2(\bm{\theta}, \hat{\bm{\beta}}, \hat{\bm{\upsilon}}) - \left| \left| \bm{R}_{22}(\bm{\beta} - \hat{\bm{\beta}})\right| \right|^2 }{2\sigma^2}\right] \\ & \left\{ \frac{1}{(2\pi\sigma^2)^{\frac{\sum_j \bm{\Psi}_{jj}}{2}}} \int \exp \left[- \frac{\left| \left|  \bm{R}_{11}(\bm{\upsilon} - \hat{\bm{\upsilon}}) + \bm{R}_{12}(\bm{\beta} - \hat{\bm{\beta}}) \right| \right|^2}{2\sigma^2} \right] d\bm{\upsilon} \right\} \label{eq:tmpL}
+&=\frac{1}{\left(2\pi\sigma^2\right)^{\frac{\sum_i \bm{\Omega}_{ii}}{2}}} \exp \left[- \frac{ r^2(\bm{\theta}, \hat{\bm{\beta}}, \hat{\bm{\upsilon}}) - \left| \left| \bm{R}_{22}(\bm{\beta} - \hat{\bm{\beta}})\right| \right|^2 }{2\sigma^2}\right] \\ & \left\{ \frac{1}{(2\pi\sigma^2)^{\frac{\sum_j \bm{\Psi}_{jj}}{2}}} \int \exp \left[- \frac{\left| \left|  \bm{R}_{11}(\bm{\upsilon} - \hat{\bm{\upsilon}}) + \bm{R}_{12}(\bm{\beta} - \hat{\bm{\beta}}) \right| \right|^2}{2\sigma^2} \right] d\bm{\upsilon} \right\} \label{eq:tmpLB}
 \end{align}
 However, while we know there are $\sum_j \bm{\Psi}_{jj}$ dimensions to integrate out (the number of population cases), a change of variables must maintain the dimensionality of the integration, so it is not clear how to proceed. Instead, we name the term inside the integral $\alpha$ and use a different methodology to derive its value. Then,
 \begin{align}

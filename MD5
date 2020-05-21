@@ -1,4 +1,4 @@
-d667f243bed0995db7b3bb3d04467ead *DESCRIPTION
+bc93421a3053b7e268d51f6922893eb8 *DESCRIPTION
 e2bd6862a2c7eaaaef64f325ffc7abb0 *NAMESPACE
 c7dfbc66c9266fa0f3b5caae3afd6521 *R/adaptiveQuad.R
 c194d084af7b57bd1255a0d74b68bca4 *R/analyticSolve.R
@@ -8,13 +8,13 @@ bd5e81dd2bf4d864527a737140e65903 *R/covarianceConstructors.R
 634b0d4ceff06c60159dd63f7cf14a2c *R/lnl.R
 eb93001450f649b3180b80107c4f90ee *R/weMix-package.R
 cb68f0b3c2895098e3b762367755ea9e *R/zzz.R
-2f1fe723be5e0ed74d3a3a60e03e261f *build/vignette.rds
-7079b6359f736f01099a48659b94df17 *inst/NEWS.Rd
+18edf3c486ca33b206a513e1e62db560 *build/vignette.rds
+fd6019f9af41e3b9a0cad57db505b930 *inst/NEWS.Rd
 0eb36d617542fc6a0492f296477b9e87 *inst/doc/Introduction_to_Mixed_Effects_Models_With_WeMix.R
 89d4ec868436d0940e8eba268722ebe7 *inst/doc/Introduction_to_Mixed_Effects_Models_With_WeMix.Rmd
-54311c6f1b0cdeae2556a44bafde8e6f *inst/doc/Introduction_to_Mixed_Effects_Models_With_WeMix.html
-6b829379bba552cf8052cd95b444e56e *inst/doc/Weighted_Linear_Mixed_Effects_Models.Rmd
-a1f7284cc1d9cd9a904234903d32356c *inst/doc/Weighted_Linear_Mixed_Effects_Models.html
+549eca738a7795936f7003476c354e86 *inst/doc/Introduction_to_Mixed_Effects_Models_With_WeMix.pdf
+edc1ccab85bfb40ec0e8c31fe6511efe *inst/doc/Weighted_Linear_Mixed_Effects_Models.Rmd
+65579433d1f0b2ad39845171618a096d *inst/doc/Weighted_Linear_Mixed_Effects_Models.pdf
 8cceb2bff8fc5f622a4c534792a1cb86 *man/WeMix-package.Rd
 5a7856302549faa149e82dae932d8d99 *man/examples/mix.R
 acb38a2ff84860ca13846fd2b5d05ff2 *man/mix.Rd
@@ -22,6 +22,6 @@ acb38a2ff84860ca13846fd2b5d05ff2 *man/mix.Rd
 6451b2344819a969bdb705f66ef81dba *tests/testthat/test-1-main.R
 17d5833490d2fdbd4b87846d0c51ae92 *tests/testthat_tests.R
 89d4ec868436d0940e8eba268722ebe7 *vignettes/Introduction_to_Mixed_Effects_Models_With_WeMix.Rmd
-6b829379bba552cf8052cd95b444e56e *vignettes/Weighted_Linear_Mixed_Effects_Models.Rmd
+edc1ccab85bfb40ec0e8c31fe6511efe *vignettes/Weighted_Linear_Mixed_Effects_Models.Rmd
 78fe9df67e956c7423d5ebda1663e544 *vignettes/images/hlm1.png
 d359845e75f33acafe0ba050e2d4d8aa *vignettes/images/hlm2.png
