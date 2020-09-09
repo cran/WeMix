@@ -1,6 +1,16 @@
 \name{NEWS}
 \title{NEWS for WeMix}
-\section{Changes in version 3.1.3}{
+
+\section{Changes in version 3.1.5}{
+  \subsection{FIXES}{
+    \itemize{
+      \item The method of forming a generalized inverse was made more robust. It used to try only a QR decomposition based generalized inverse; this is now lest robust for unknown reasons. Now it also tries an SVD decomposition based generalized inverse.
+      \item Updated tests to use EdSurvey 2.6.1.
+    }
+  }
+}
+
+\section{Changes in version 3.1.4}{
   \subsection{BUG FIXES}{
     \itemize{
       \item The vignettes should now appear as pdf files on CRAN.

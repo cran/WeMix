@@ -735,7 +735,11 @@ solveFix <- function(lambda_i) {
   # try QR based fix, which may fail
   res <- try(qrFix(lambda_i), silent=TRUE)
   if(inherits(res, "try-error")) {
-    return(eigenFix(lambda_i))
+    res <- try(eigenFix(lambda_i), silent=TRUE)
+    if(inherits(res, "try-error")) {
+      return(svdFix(lambda_i))
+    }
+    return(res)
   } else{
     return(res)
   }
@@ -762,4 +766,13 @@ eigenFix <- function(lambda_i) {
   eig <- eigQ %*% diag(eigV, nrow=length(eigV)) %*% eigQinv
   dimnames(eig) <- dimnames(eigInv) <- dimnames(lambda_i)
   return(list(lambda=eig, lambdaInv=eigInv))
+}
+
+svdFix <- function(lambda_i) {
+  svdi <- svd(lambda_i)
+  s <- svdi$d
+  s[s < 2*.Machine$double.eps * max(s)]  <- 2 * .Machine$double.eps * max(s)
+  lambda <- svdi$u %*% diag(s) %*% svdi$v
+  lambdaInv <- t(svdi$v) %*% diag(1/s) %*% t(svdi$u)
+  return(list(lambda=lambda, lambdaInv=lambdaInv))
 }

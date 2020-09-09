@@ -1016,8 +1016,8 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   varDF$vcov <- vars #re assign in variance from mix.  This works without formatting because only 2 level models are posisble
   
   res <- list(lnlf=fn0R, lnl=fn0(est), coef=est[1:k], vars=vars,
-              call=call, levels=levels,ICC=ICC, CMODE=BLUE,
-              invHessian=hessian,is_adaptive=TRUE,ngroups=ngroups,varDF =varDF)
+              call=call, levels=levels, ICC=ICC, CMODE=BLUE,
+              invHessian=hessian, is_adaptive=TRUE, ngroups=ngroups, varDF=varDF)
   class(res) <- "WeMixResults"
   return(res)
 }

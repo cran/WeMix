@@ -220,9 +220,9 @@ test_that("Weighted three level model unsorted", {
   ss2$w2 <- rep(w2,each=10)
   ss2$w3 <- ifelse(ss2$Subject %in% c("308", "333", "350", "351", "370", "371"),2,1)
 
-  ss3 <- ss2[sample(row.names(ss2),size=nrow(ss2)),]
+  ss3 <- ss2[sample(row.names(ss2), size=nrow(ss2)), ]
   wm0 <- mix(Reaction ~ Days + (1|Subject) + (1|Group), data=ss3, 
-             weights=c("w1", "w2","w3"))
+             weights=c("w1", "w2", "w3"))
 
   # check coef
   expect_equal(coef(wm0),
@@ -294,7 +294,7 @@ test_that("Zero variance estimate", {
   ss1$W3 <- ifelse(ss1$Group == 2, 2, 1)
 
   #Run three level model with random slope and intercept. 
-  three_level <- mix(Reaction~ Days + (1|Subject) + (1+Days|Group), data=ss1, weights = c("W1","W2","W3"))
+  three_level <- mix(Reaction ~ Days + (1|Subject) + (1+Days|Group), data=ss1, weights = c("W1","W2","W3"))
   expect_is(three_level, "WeMixResults")
 })
 
@@ -417,9 +417,9 @@ test_that("summary output format", {
            "mix(formula = Reaction ~ Days + (car || Subject), data = ss2, ",
            "    weights = c(\"w1\", \"w2\"))", "", "Variance terms:",
            " Level    Group        Name Variance Std. Error Std.Dev. Corr1 Corr2", 
-           "     2  Subject (Intercept)      698        418     26.4            ", 
-           "     2  Subject    carFALSE      213        288     14.6     0      ", 
-           "     2  Subject     carTRUE     1619        861     40.2     0  0.92", 
+           "     2  Subject (Intercept)      698        461     26.4            ", 
+           "     2  Subject    carFALSE      214        117     14.6     0      ", 
+           "     2  Subject     carTRUE     1619        737     40.2     0  0.92", 
            "     1 Residual                  808        162     28.4            ", 
            "Groups:",
            "Number of obs       Subject ",
@@ -812,23 +812,24 @@ test_that("Model with top level groups that have entirely 0 columns in Z", {
   skip_on_cran()
   require(EdSurvey)
   ee <- readECLS_K2011(paste0(edsurveyHome, "ECLS_K/2011/"), verbose=FALSE)
-  gg <- getData(c("x2rscalk4", "childid", "s2_id", "w1_2p0", "x3sumsh", "p1chldbk","p2freerd"), data=ee, omittedLevels=FALSE, returnJKreplicates=FALSE)
+  gg <- getData(c("x2rscalk5", "childid", "s2_id", "w1_2p0", "x3sumsh", "p1chldbk","p2freerd"), data=ee, omittedLevels=FALSE, returnJKreplicates=FALSE)
   gg$frpl <- ifelse(gg$p2freerd %in% c("1: FREE LUNCH", "2: REDUCED PRICE LUNCH"), 1, 0)
-  #gg$frpl <- ifelse(gg$p2freerd %in% c("1: FREE LUNCH", "2: REDUCED PRICE LUNCH"), 1, 0)
   gg$w1 <- gg$w1_2p0
   gg$w2 <- 1
   gg$n <- ave(gg$s2_id,gg$s2_id, FUN=length)
-  gg2 <- gg[!is.na(gg$x2rscalk4) & gg$w1>0 & !is.na(gg$p1chldbk) & gg$n > 15 & gg$s2_id < 1200,]
-  m3 <- mix(x2rscalk4 ~ p1chldbk + frpl + (1+frpl|s2_id), data=gg2, weights=c("w1", "w2"), verbose=FALSE)
-  expect_equal(m3$lnl, -1487373.35690271, tol=1e-5)
-  expect_equal(m3$coef, c(`(Intercept)`= 65.3997808905506, p1chldbk= 0.0277046025800543, frpl= -4.31148740276502), tol=1e-5)
-  expect_equal(m3$SE, c(`(Intercept)`= 1.00104768903161, p1chldbk= 0.00598831966294215, frpl= 1.09613407378124), tol=1e-5)
+  gg2 <- gg[!is.na(gg$x2rscalk5) & gg$w1>0 & !is.na(gg$p1chldbk) & gg$n > 15 & gg$s2_id < 1200,]
+  m3 <- mix(x2rscalk5 ~ p1chldbk + frpl + (1+frpl|s2_id), data=gg2, weights=c("w1", "w2"), verbose=FALSE)
+  # regression tests
+  expect_equal(m3$lnl, -1513119.73817376, tol=1e-5)
+  expect_equal(m3$coef, c(`(Intercept)` = 67.5434743459653, p1chldbk = 0.0287511027423215, frpl = -4.62934048945893), tol=1e-5)
+  expect_equal(m3$SE, c(`(Intercept)` = 1.07449754776874, p1chldbk = 0.00668096358477409, frpl = 1.12769131710247), tol=1e-5)
   varDF0 <- structure(list(grp = c("s2_id", "s2_id", "s2_id", "Residual"), 
                            var1 = c("(Intercept)", "frpl", "(Intercept)", NA),
-                           var2 = c(NA, NA, "frpl", NA), vcov = c(72.566994157529, 97.9237563712147, -49.598003315857, 132.632563255804),
+                           var2 = c(NA, NA, "frpl", NA),
+                           vcov = c(82.1115665535057, 103.939072336388, -57.1975297909512, 151.622543466079),
                            ngrp = c(97, 97, 97, 1520),
                            level = c(2, 2, 2, 1),
-                           SEvcov = c(13.0086037063617, 17.7142865251415, 12.4863072054752, 7.49244294118361),
+                           SEvcov =  c(17.082223467814, 20.4018480839976, 15.328078288835, 10.0505684893662),
                            fullGroup = c("s2_id.(Intercept)", "s2_id.frpl", "s2_id.(Intercept)", "Residual")),
                        row.names = c(NA, -4L), class = "data.frame")
   expect_equal(m3$varDF, varDF0, tol=1e-5)
