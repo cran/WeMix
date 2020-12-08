@@ -1,9 +1,19 @@
 \name{NEWS}
 \title{NEWS for WeMix}
 
-\section{Changes in version 3.1.5}{
-  \subsection{FIXES}{
+
+\section{Changes in version 3.1.6}{
+  \subsection{IMPROVEMENTS}{
     \itemize{
+      \item it is possible to pass an S3 object that claims to extend data frame but does not (such as a \code{tbl_df}) and so now all data objects are cast as a data frame before procesing beings. The specific issue is that a \code{tbl_df} defaults to \code{drop=FALSE} causing a single vector to maintain its name when it is expected to be unnamed.
+    }
+  }
+}
+
+\section{Changes in version 3.1.5}{
+  \subsection{IMPROVEMENTS}{
+    \itemize{
+      \item Models now use less memory when there is a large number of units and groups after switching to a sparse Matrix for the random effects.
       \item The method of forming a generalized inverse was made more robust. It used to try only a QR decomposition based generalized inverse; this is now lest robust for unknown reasons. Now it also tries an SVD decomposition based generalized inverse.
       \item Updated tests to use EdSurvey 2.6.1.
     }

@@ -50,7 +50,7 @@
 #' @importFrom stats dnorm aggregate terms dpois dgamma dbinom ave model.matrix terms.formula as.formula sigma complete.cases
 #' @importFrom numDeriv genD hessian grad
 #' @importFrom minqa bobyqa 
-#' @importFrom Matrix nearPD
+#' @importFrom Matrix nearPD sparse.model.matrix
 #' @return object of class \code{WeMixResults}. 
 #' This is a list with elements: 
 #' \item{lnlf}{function, the likelihood function.} 
@@ -95,6 +95,9 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   # check class and some requirements of arguments
   if(!inherits(formula, "formula")) stop(paste0("The argument ", sQuote("formula"), " must be a formula."))
   if(!inherits(data, "data.frame")) stop(paste0("The argument ", sQuote("data"), " must be a data.frame."))  
+  if(length(class(data)) > 1) { 
+    data <- as.data.frame(data)
+  }
   if(nQuad <= 0) stop(paste0("The argument ", sQuote("nQuad"), " must be a positive integer."))
   if(!inherits(run, "logical")) stop(paste0("The argument ", sQuote("run"), " must be a logical."))
   if(!inherits(verbose, "logical")) stop(paste0("The argument ", sQuote("verbose"), " must be a logical."))
@@ -107,13 +110,13 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   #this removes any  incomplete cases if they exist 
   if(any(is.na(data[,c(all.vars(formula),weights)]))) {
     warning(paste0("There were ", sum(complete.cases(data)==FALSE), " rows with missing data. These have been removed."))
-    data <- data[complete.cases(data),]
+    data <- data[complete.cases(data), ]
   }
   #this removes any zero weight cases if they exist 
   data[apply(data[,weights]<=0, 1, any), weights] <- NA
   if(any(is.na(data[,weights]))) {
     warning(paste0("There were ", sum(complete.cases(data)==FALSE), " rows with non-positive weights. These have been removed."))
-    data <- data[complete.cases(data),]
+    data <- data[complete.cases(data), ]
   }
   
   # setup family
@@ -156,21 +159,21 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   # a function to parse group names
   groupParser <- function(groupi) {
     # have base::all.vars parse the group name
-    all.vars(formula(paste0("~",groupi)))
+    all.vars(formula(paste0("~", groupi)))
   }
   
   # apply the parser to each random effect, and unique them
   groupNames <- rev(unique(unlist(lapply(unparsedGroupNames, groupParser))))
   # reorder data by groups (in order to make Z matrix obtained from lme easier to work with)
-  data <- data[do.call(order, lapply(rev(groupNames), function(colN) data[,colN])),]
+  data <- data[do.call(order, lapply(rev(groupNames), function(colN) data[ , colN])), ]
   
   if(!is.null(center_group)) {
     #first add nested variables to data set if they exist, this is to handle / and : in group vars
-    if (any(grep(":|/",names(center_group)))) {
-      nested_groups <- names(center_group)[grep(":|/",names(center_group))]
+    if (any(grep(":|/", names(center_group)))) {
+      nested_groups <- names(center_group)[grep(":|/", names(center_group))]
       for (var in nested_groups){
-         vars <- unlist(strsplit(var,":|/"))
-         data[,var] <- paste0(data[,vars[1]],":",data[,vars[2]])
+        vars <- unlist(strsplit(var , ":|/"))
+        data[,var] <- paste0(data[ , vars[1]], ":", data[ , vars[2]])
       }
     } #end of if there are : and / 
     if(!all(names(center_group) %in% names(data))){
@@ -183,25 +186,32 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
 
         # identify level--it is the minimum group to account for : and / specified groups
         lev <- min(which(groupNames %in% unlist(strsplit(name,":|/"))))
-
-        X <- model.matrix(center_group[[name]],data=data)
+        X <- sparse.model.matrix(center_group[[name]],data=data)
         vars <- colnames(X)[-1]
-        X <- cbind(X,data[,c(name,weights0[lev])])
-        
+        X <- cbind(X, data[ , weights0[lev]])
+        colnames(X)[ncol(X)] <- weights0[lev]
         # subtract group average from value and put back into data 
         # including scaling factor that accoutns for the fact weights might not sum to 0 l
-        data[,vars] <- sapply(vars, function(var){X[,var] - ave(X[,var]*X[,weights0[lev]],X[,name])/(nrow(X)/sum(X[,weights0[lev]]))})
+        data[ , vars] <- sapply(vars, function(var){
+                           X[ , var] - 
+                             ave(X[ , var] * X[ , weights0[lev]], data[ , name])/
+                             (nrow(X)/sum(X[ , weights0[lev]]))
+                         })
+        # only used for centering
+        rm(X)
       } # end for(name in names(center_group))
     } # end else for loop mean centering varibles 
   } # end if(!is.null(center_group))
   
    
   if(!is.null(center_grand)){
-    X <- model.matrix(center_grand,data=data)
+    X <- sparse.model.matrix(center_grand, data=data)
     vars <- colnames(X)[-1]
     
     #subtract overall avvrage from value and put back into X 
-    data[,vars] <- sapply(vars, function(var){X[,var] - ave(X[,var])})
+    data[ , vars] <- sapply(vars, function(var){X[ , var] - ave(X[ , var])})
+    # only used for centering
+    rm(X)
   }
 
   # remove row names so that resorted order is used in lme model 
@@ -230,7 +240,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   groupNames <- all_groups  
   
   # store the full sample weights (or cWeights) in wgts0
-  wgts0 <- data[,weights]
+  wgts0 <- data[ , weights]
   if(cWeights) {
     for(i in (ncol(wgts0)-1):1) {
       wgts0[,i] <- wgts0[,i] * wgts0[,i+1]
@@ -238,7 +248,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   } else {
     cwarn <- FALSE
     for(i in (ncol(wgts0)-1):1) {
-      if(any(wgts0[,i] < wgts0[,i+1])) {
+      if(any(wgts0[ , i] < wgts0[ , i+1])) {
         cwarn <- TRUE
       }
     }
@@ -302,7 +312,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   # columns representing unit weight at that level and index of group names 
   weights <- list()
   for(i in 1:length(nz)) {
-    df <- data.frame(w=wgts0[,i],stringsAsFactors=FALSE)
+    df <- data.frame(w=unname(wgts0[,i]), stringsAsFactors=FALSE)
     # add the index for this level, when there is one
     if(i < length(nz)) {
       df$indexp1 <- data[,all_groups[i]]
@@ -413,7 +423,8 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
     Zlist <- list()
     for (i in 2:levels){
       z_names <- z_levels[z_levels$level==i,"fullGroup"]
-      Zlist[[i-1]] <-t(as.matrix((Reduce(rbind,temp_Z[z_names]))))
+      Zlist[[i-1]] <- Matrix::t(do.call(rbind, temp_Z[z_names]))
+      #Zlist[[i-1]] <- t(as.matrix((Reduce(rbind, temp_Z[z_names]))))
     }
     #seperating into single random effects using the pointers
     pointers <- getME(lme, "Gp")
@@ -789,11 +800,9 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   dd1 <- d1
   dd2 <- outer(dd1,dd1) 
   iteration <- 1
-  while(max(abs(dd1[c(1:k,not_0_vars)]/pmax(abs(est[c(1:k,not_0_vars)]),1e-5))) > 1E-5) { 
+
+  while(max(abs(dd1[c(1:k,not_0_vars)]/pmax(abs(est[c(1:k,not_0_vars)]),1e-5))) > 1E-5 & iteration <= max_iteration) { 
     iteration <- iteration + 1
-    if (iteration > max_iteration){
-      stop("Model exceeded maximum number of iterations without converging.")
-    }
     if(length(stepIndQueue)==0) {
       stepIndQueue <- defStepsInds
     }
@@ -966,6 +975,9 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
     }
   } # end of while(max(abs(d1/pmax(abs(est),1e-5))) > 1E-5)
 
+  if (iteration > max_iteration){
+    warning("Model exceeded maximum number of iterations without converging.")
+  }
   #############################################
   #            4) Post Estimation             #
   #############################################

@@ -404,9 +404,10 @@ test_that("summary output format", {
           "          180            18 ",  "",
           "Fixed Effects:",
           "            Estimate Std. Error t value", 
-          "(Intercept) 252.7159     6.5295 38.7040",
-          "Days         11.1938     1.5050  7.4379", "",
-          "lnl= -868.1273 ",
+          "(Intercept)   252.72       6.53   38.70",
+          "Days           11.19       1.50    7.44",
+          "",
+          "lnl= -868.13 ",
           "Intraclass Correlation= 0.713 ")
 
   wm0 <- mix(Reaction ~ Days + (Days+car|Subject), data=ss2, weights=c("w1", "w2"))
@@ -426,9 +427,10 @@ test_that("summary output format", {
            "          180            18 ", "",
            "Fixed Effects:",
            "            Estimate Std. Error t value",
-           "(Intercept) 236.8427     6.7062  35.317",
-           "Days          9.5941     1.5608   6.147", "",
-           "lnl= -890.6816 ",
+           "(Intercept)   236.84       6.71   35.32",
+           "Days            9.59       1.56    6.15",
+           "",
+           "lnl= -890.68 ",
            "Intraclass Correlation= 0.758 ")
   wm0 <- mix(Reaction ~ Days + (car||Subject), data=ss2, weights=c("w1", "w2"))
   co <- capture.output(summary(wm0))

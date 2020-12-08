@@ -186,14 +186,16 @@ waldTest <- function(fittedModel, type=c("beta", "Lambda") , coefs=NA, hypothesi
     # this block sets up R, the hypothesis matrix 
     # it has a row for each parameter to be tested (q) 
     # it has a column for each parameter that exists in the model
-    R <-  matrix(0,nrow=q,ncol=p)
+    R <-  matrix(0, nrow=q, ncol=p)
     rownames(R) <- coef_names
     colnames(R) <- names(fittedModel$theta)
     
     # Fill in one for each  each coefficient to  be tested in the relevant row
     for (coef in coef_names){
-      if (any(!coef_names %in% names(fittedModel$theta))){stop("Names of coefficients to test must be the same as names of theta in the fitted model.")}
-      R[coef,coef] <- 1
+      if (any(!coef_names %in% names(fittedModel$theta))){
+        stop("Names of coefficients to test must be the same as names of theta in the fitted model.")
+      }
+      R[coef, coef] <- 1
     }
     
     #this block sets up the r vector of hypothesized values for theta
@@ -266,12 +268,12 @@ waldTest <- function(fittedModel, type=c("beta", "Lambda") , coefs=NA, hypothesi
     # Fill in one for each  each coefficient to  be tested in the relevant row
     for (coef in coef_names){
       if (any(!coef_names %in% names(fittedModel$coef))){stop("Names of coefficients to test must be the same as names of beta in the fitted model.")}
-      R[coef,coef] <- 1
+      R[coef, coef] <- 1
     }
     
     #this block sets up the r vector of hypothesized values for theta
     if (all(is.na(hypothesis))){
-      r <- rep(0,q)
+      r <- rep(0, q)
     } else {
       if (length(hypothesis) != q){stop("Length of hypothesized values must be same as number of coefficients to test.")}
       r <- hypothesis
