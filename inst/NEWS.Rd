@@ -1,6 +1,14 @@
 \name{NEWS}
 \title{NEWS for WeMix}
 
+\section{Changes in version 3.1.7}{
+  \subsection{IMPROVEMENTS}{
+    \itemize{
+      \item improved infomation about weights by level under \code{Groups} header of an \code{mml} summary.
+      \item a conditioning variable cannot contain a dot, which now has a clearer error. Thank you to Felix Schulz for identifying this issue.
+    }
+  }
+}
 
 \section{Changes in version 3.1.6}{
   \subsection{IMPROVEMENTS}{

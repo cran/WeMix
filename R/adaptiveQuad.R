@@ -73,6 +73,7 @@
 #' \item{varVC}{the variance-covariance matrix of the random effects.}
 #' \item{cov_mat}{the variance-covariance matrix of the fixed effects.}
 #' \item{var_theta}{the variance covariance matrix of the theta terms.}
+#' \item{wgtStats}{statistics regarding weights, by level.}
 #' @example \man\examples\mix.R
 #' @author Paul Bailey, Claire Kelley, and Trang Nguyen 
 #' @export
@@ -105,7 +106,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   if(any(!weights %in% colnames(data))) stop(paste0("The argument ", sQuote("weights"), " must specify valid columns in ", sQuote("data"), "."))
   if(acc0 <= 0) stop(paste0("The argument ", sQuote("acc0"), " must be a positive integer."))
   if(!missing(fast)) warning(paste0("The ", sQuote("fast"), " argument is deprecated."))
-  
+  if(any(grepl("[|].*[.]",attributes(terms(formula))$term.labels))) stop("The formula is not valid for mix. The name of conditioning variables must not contain a dot. Try renaming variables after | in the fomrula so they do not contain a dot.")
   #currently wemix can only use complete cases
   #this removes any  incomplete cases if they exist 
   if(any(is.na(data[,c(all.vars(formula),weights)]))) {
@@ -350,6 +351,9 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
     # then there will be non unique entries in ngrp 
     stop("This does not appear to be a nested model. Some levels of this model have the same number of subject/groups as the level above them.")
   }
+  ngrpW <- lapply(weights, function(wdf) {
+    return(list(mean=mean(wdf$w), sum=sum(wdf$w), min=min(wdf$w), max=max(wdf$w))) 
+  })
 
   # set up variance and coefficients 
   lmeVarDF <- data.frame(lmesummary$varcor)
@@ -600,7 +604,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
     # other output stats
     nobs <- nrow(X)
     names(nobs) <- "Number of obs"
-    ngroups <- c(nobs,ngrp)
+    ngroups <- c(nobs, ngrp)
 
     #Calculate ICC 
     var_between <- sum(varDF[which(!is.na(varDF$var1) & is.na(varDF$var2)),"vcov"])
@@ -625,7 +629,8 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
                levels=levels, CMODE=bhatq$ranef,
                invHessian=bhatq$cov_mat, ICC=ICC,
                is_adaptive=FALSE, sigma=bhatq$sigma, cov_mat=bhatq$varBetaRobust,
-               ngroups=ngroups, varDF=varDF, varVC=varVC,var_theta=var_of_var)
+               ngroups=ngroups, varDF=varDF, varVC=varVC,var_theta=var_of_var,
+               wgtStats=ngrpW)
     class(res) <- "WeMixResults"
     return(res)
   }
@@ -1017,7 +1022,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
   # it is possible for the lnl to have changed slightly, so update it to avoid confusion
   nobs <- nrow(X)
   names(nobs) <- "Number of obs"
-  ngroups <- c(nobs,ngrp)
+  ngroups <- c(nobs, ngrp)
   
   #set up the variance covariance matrix 
   varDF <- lmeVarDF[,c("grp", "var1", "var2", "vcov", "ngrp", "level")]

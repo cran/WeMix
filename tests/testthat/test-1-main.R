@@ -400,8 +400,10 @@ test_that("summary output format", {
           "     2  Subject     carTRUE    648.5      309.3    25.46 -0.42 -0.39", 
           "     1 Residual                528.8      145.7    23.00            ", 
           "Groups:",
-          "Number of obs       Subject ",
-          "          180            18 ",  "",
+          " Level   Group n size mean wgt sum wgt",
+          "     2 Subject     18        1      18",
+          "     1     Obs    180        1     180",
+          "",
           "Fixed Effects:",
           "            Estimate Std. Error t value", 
           "(Intercept)   252.72       6.53   38.70",
@@ -411,7 +413,9 @@ test_that("summary output format", {
           "Intraclass Correlation= 0.713 ")
 
   wm0 <- mix(Reaction ~ Days + (Days+car|Subject), data=ss2, weights=c("w1", "w2"))
-  co <- capture.output(summary(wm0))
+  withr::with_options(list(digits=2),
+                       co <- capture.output(summary(wm0))
+                     )
   expect_equal(co, co0)
 
   co1 <- c("Call:",
@@ -423,8 +427,10 @@ test_that("summary output format", {
            "     2  Subject     carTRUE     1619        737     40.2     0  0.92", 
            "     1 Residual                  808        162     28.4            ", 
            "Groups:",
-           "Number of obs       Subject ",
-           "          180            18 ", "",
+           " Level   Group n size mean wgt sum wgt",
+           "     2 Subject     18        1      18",
+           "     1     Obs    180        1     180",
+           "",
            "Fixed Effects:",
            "            Estimate Std. Error t value",
            "(Intercept)   236.84       6.71   35.32",
@@ -433,7 +439,9 @@ test_that("summary output format", {
            "lnl= -890.68 ",
            "Intraclass Correlation= 0.758 ")
   wm0 <- mix(Reaction ~ Days + (car||Subject), data=ss2, weights=c("w1", "w2"))
-  co <- capture.output(summary(wm0))
+  withr::with_options(list(digits=2),
+                       co <- capture.output(summary(wm0))
+                     )
   expect_equal(co, co1)
 })
 
@@ -626,19 +634,21 @@ test_that("Complex weighted three level model", {
   expect_equal(unname(wmr2$vars[length(wmr2$vars)]), unname(lmr2@devcomp$cmp["sigmaML"]^2), tol=1e-4)
 }) 
 
+if(!exists("edsurveyHome")) {
+  if (Sys.info()[['sysname']] == "Windows") {
+    edsurveyHome <- "C:/EdSurveyData/"
+  } else {
+    edsurveyHome <- "~/"
+  }
+}
+
 context("PISA tests")
 test_that("PISA tests", {
   skip_on_cran()
   require(EdSurvey)
   #read in data 
-  if(!exists("edsurveyHome")) {
-    if (Sys.info()[['sysname']] == "Windows") {
-      edsurveyHome <- "C:/EdSurveyData/"
-    } else {
-      edsurveyHome <- "~/EdSurveyData/"
-    }
-  }
 
+  options(timeout=60*60)
   downloadPISA(root=edsurveyHome, years=2012, cache=FALSE, verbose=FALSE)
   cntl <- readPISA(file.path(edsurveyHome, "PISA/2012"), countries = "USA", verbose=FALSE)
   om <- getAttributes(cntl, "omittedLevels")
@@ -769,13 +779,6 @@ test_that("examples run", {
   # use vignette example
   library(EdSurvey)
 
-  if(!exists("edsurveyHome")) {
-    if (Sys.info()[['sysname']] == "Windows") {
-      edsurveyHome <- "C:/EdSurveyData/"
-    } else {
-      edsurveyHome <- "~/EdSurveyData/"
-    }
-  }
   #read in data 
   cntl <- readPISA(file.path(edsurveyHome,"PISA/2012"), countries="USA", verbose=FALSE)
   data <- getData(cntl,c("schoolid","pv1math","st29q03","sc14q02","st04q01",
@@ -809,10 +812,19 @@ test_that("examples run", {
 
 })
 
+if(!exists("edsurveyHome")) {
+  if (Sys.info()[['sysname']] == "Windows") {
+    edsurveyHome <- "C:/EdSurveyData/"
+  } else {
+    edsurveyHome <- "~/EdSurveyData/"
+  }
+}
+
 context("Model with top level groups that have entirely 0 columns in Z")
 test_that("Model with top level groups that have entirely 0 columns in Z", {
   skip_on_cran()
   require(EdSurvey)
+  downloadECLS_K(root=edsurveyHome, years=2011)
   ee <- readECLS_K2011(paste0(edsurveyHome, "ECLS_K/2011/"), verbose=FALSE)
   gg <- getData(c("x2rscalk5", "childid", "s2_id", "w1_2p0", "x3sumsh", "p1chldbk","p2freerd"), data=ee, omittedLevels=FALSE, returnJKreplicates=FALSE)
   gg$frpl <- ifelse(gg$p2freerd %in% c("1: FREE LUNCH", "2: REDUCED PRICE LUNCH"), 1, 0)
@@ -842,13 +854,6 @@ test_that("TIMSS tests", {
   skip_on_cran()
   require(EdSurvey)
 
-  if(!exists("edsurveyHome")) {
-    if (Sys.info()[['sysname']] == "Windows") {
-      edsurveyHome <- "C:/EdSurveyData/"
-    } else {
-      edsurveyHome <- "~/EdSurveyData/"
-    }
-  }
   # original version by Christian Kjeldsen
   downloadTIMSS(root=edsurveyHome, years=2015, cache=FALSE, verbose=FALSE)
   dnk15 <- readTIMSS(file.path(edsurveyHome,"/TIMSS/2015"), countries="dnk", gradeLvl=4, verbose=FALSE)

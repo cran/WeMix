@@ -96,25 +96,33 @@ print.WeMixWaldTest <- function(x, ...) {
 # This helper function creates a coefficient matrix from WeMix results.
 #' @export
 #' @importFrom stats printCoefmat
-print.summaryWeMixResults <- function(x, ...) {
+print.summaryWeMixResults <- function(x, digits = max(3, getOption("digits") - 3), nsmall=2,...) {
   cat("Call:\n")
   print(x$call)
   cat("\nVariance terms:\n")
   varsmat <- x$varsmat
+  varsmat <- varsmat[order(varsmat$Level, decreasing=TRUE),]
   i <- 1
   while(paste0("Corr",i) %in% colnames(varsmat)) {
     # round correlations to two digits
     varsmat[[paste0("Corr",i)]] <- as.character(round(varsmat[[paste0("Corr",i)]],2))
     i <- i + 1
   }
-  print(varsmat, na.print="", row.names=FALSE, digits=3)
+  print(varsmat, na.print="", row.names=FALSE, digits=digits, nsmall=nsmall)
   cat("Groups:\n")
-  print(x$ngroups)
+  groupSum <- varsmat[!duplicated(varsmat$Level),c("Level", "Group")]
+  groupSum$Group[groupSum$Level==1] <- "Obs"
+  groupSum$"n size" <- rev(x$ngroups)
+  for(i in 1:length(x$wgtStats)) {
+    groupSum$"mean wgt"[groupSum$Level == i] <- x$wgtStats[[i]]$mean
+    groupSum$"sum wgt"[groupSum$Level == i] <- x$wgtStats[[i]]$sum
+  }
+  print(groupSum, na.print="", row.names=FALSE, digits=digits, nsmall=nsmall)
   cat("\nFixed Effects:\n")
-  printCoefmat(x$coef, ...)
-  cat("\nlnl=",format(x$lnl,nsmall=2),"\n")
+  printCoefmat(x$coef, digits=digits, ...)
+  cat("\nlnl=",format(x$lnl, nsmall=nsmall),"\n")
   if(length(x$ICC) > 0) {
-    cat("Intraclass Correlation=",format(x$ICC, nsmall=3, digits=3),"\n")
+    cat("Intraclass Correlation=",format(x$ICC, nsmall=nsmall, digits=digits),"\n")
   }
 }
 
@@ -268,12 +276,12 @@ waldTest <- function(fittedModel, type=c("beta", "Lambda") , coefs=NA, hypothesi
     # Fill in one for each  each coefficient to  be tested in the relevant row
     for (coef in coef_names){
       if (any(!coef_names %in% names(fittedModel$coef))){stop("Names of coefficients to test must be the same as names of beta in the fitted model.")}
-      R[coef, coef] <- 1
+      R[coef,coef] <- 1
     }
     
     #this block sets up the r vector of hypothesized values for theta
     if (all(is.na(hypothesis))){
-      r <- rep(0, q)
+      r <- rep(0,q)
     } else {
       if (length(hypothesis) != q){stop("Length of hypothesized values must be same as number of coefficients to test.")}
       r <- hypothesis
@@ -298,7 +306,7 @@ waldTest <- function(fittedModel, type=c("beta", "Lambda") , coefs=NA, hypothesi
   } #end else for if (type == "beta")
   
   #Wald test using the following equation
-  #W = (Rb − r)' (RVR') ^ −1 (Rb − r)
+  #W = (Rb - r)^T (RVR^T)^-1 (Rb - r)
   W = as.numeric(t(R%*%ests - r)  %*% solve(R  %*% V_hat  %*% t(R)) %*% (R%*%ests - r))
   ch = 1 - pchisq(W, df=q)
   res <- list("Wald"=W,"p"=ch ,"df"=q,"H0"= h0,"HA"=ha)
