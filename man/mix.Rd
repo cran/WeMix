@@ -85,6 +85,7 @@ This is a list with elements:
 \item{varVC}{the variance-covariance matrix of the random effects.}
 \item{cov_mat}{the variance-covariance matrix of the fixed effects.}
 \item{var_theta}{the variance covariance matrix of the theta terms.}
+\item{wgtStats}{statistics regarding weights, by level.}
 }
 \description{
 Implements a survey weighted mixed-effects model using the provided formula.

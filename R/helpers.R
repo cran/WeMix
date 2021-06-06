@@ -13,7 +13,7 @@ print.WeMixResults <- function(x, ...) {
 
 # This helper funciton creates a coefficient matrix from WeMix results.
 # and packages variance results in a clearer way. 
-#' @importFrom stats cov2cor
+#' @importFrom stats cov2cor model.frame
 #' @export
 summary.WeMixResults <- function(object, ...) {
   x0 <- object
@@ -96,7 +96,7 @@ print.WeMixWaldTest <- function(x, ...) {
 # This helper function creates a coefficient matrix from WeMix results.
 #' @export
 #' @importFrom stats printCoefmat
-print.summaryWeMixResults <- function(x, digits = max(3, getOption("digits") - 3), nsmall=2,...) {
+print.summaryWeMixResults <- function(x, digits = max(3, getOption("digits") - 3), nsmall=2, ...) {
   cat("Call:\n")
   print(x$call)
   cat("\nVariance terms:\n")
@@ -110,8 +110,15 @@ print.summaryWeMixResults <- function(x, digits = max(3, getOption("digits") - 3
   }
   print(varsmat, na.print="", row.names=FALSE, digits=digits, nsmall=nsmall)
   cat("Groups:\n")
-  groupSum <- varsmat[!duplicated(varsmat$Level),c("Level", "Group")]
-  groupSum$Group[groupSum$Level==1] <- "Obs"
+  groupSum <- varsmat[!duplicated(varsmat$Level), c("Level", "Group")]
+  if(any(groupSum$Level==1)) {
+    groupSum$Group[groupSum$Level==1] <- "Obs"
+  } else {
+    newrow <- groupSum[1,]
+    newrow$Level <- 1
+    newrow$Group <- "Obs"
+    groupSum <- rbind(groupSum, newrow)
+  }
   groupSum$"n size" <- rev(x$ngroups)
   for(i in 1:length(x$wgtStats)) {
     groupSum$"mean wgt"[groupSum$Level == i] <- x$wgtStats[[i]]$mean

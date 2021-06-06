@@ -1,6 +1,29 @@
 \name{NEWS}
 \title{NEWS for WeMix}
 
+\section{Changes in version 3.1.8}{
+  \subsection{BUG FIXEX}{
+    \itemize{
+      \item \code{mix} now works with factor outcomes in a binomial model.
+      \item \code{mix} now works with factor IDs.
+      \item the final latent estimates were not converging because the Newton steps were not sufficently controlled. They are now more agressively prevented from diverging.
+      \item when the variance estimate of a binomial model converged to the minimum variable (about 0.01) the model never acknowledged convergence, it now does.
+      \item thanks to Tan Khai Ee and Prof. Taberez A. Neyazi for identifying and helping develop test code for the above four bugs.
+      \item non-linear models summary function was not printing correctly. They are now also correctly showing weighted results, similar to linear models in 3.1.7.
+      \item the warning for very low variance models in binomial regression was updated to clearly state the limitation of WeMix (it cannot estimate such models), and possible solutions.
+    }
+  }
+}
+
+
+\section{Changes in version 3.1.7}{
+  \subsection{IMPROVEMENTS}{
+    \itemize{
+      \item with the extended information in \code{Groups} the warning about conditional weights was extranious and so was removed.
+    }
+  }
+}
+
 \section{Changes in version 3.1.7}{
   \subsection{IMPROVEMENTS}{
     \itemize{

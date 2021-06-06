@@ -60,6 +60,36 @@ test_that("The model runs", {
 })
 
 
+context("Factor binomial")
+test_that("Factor binomial", {
+  sleepstudyM <- sleepstudyU
+  sleepstudyM$highR <- factor(ifelse(sleepstudyM$Reaction > 340, 2, 1), levels=c(1,2), labels=c("L","H"))
+  sleepstudyM$Sub <- factor(sleepstudyM$Subject, levels=300:400) 
+  m1 <- mix(highR ~ Days + (1|Subject), data=sleepstudyM, weights=c("weight1L1", "weight1L2"), family="binomial")
+  expect_equal(coef(m1), c(`(Intercept)` = -8.69336570860094, Days = 1.17236933934874), tol=1e-6)
+  summaryREF <- c("Call:",
+                  "mix(formula = highR ~ Days + (1 | Subject), data = sleepstudyM, ", 
+                  "    weights = c(\"weight1L1\", \"weight1L2\"), family = \"binomial\")", 
+                  "",
+                  "Variance terms:",
+                  " Level   Group        Name Variance Std. Error Std.Dev.", 
+                  "     2 Subject (Intercept)     7.99       5.13     2.83", "Groups:", 
+                  " Level   Group n size mean wgt sum wgt",
+                  "     2 Subject     18        1      18",
+                  "     1     Obs    180        1     180",
+                  "",
+                  "Fixed Effects:",
+                  "            Estimate Std. Error t value",
+                  "(Intercept)   -8.693      2.072   -4.20", 
+                  "Days           1.172      0.278    4.21",
+                  "",
+                  "lnl= -53.90 ")
+  withr::with_options(list(digits=2),
+                       co <- capture.output(summary(m1))
+                     )
+  expect_equal(co, summaryREF)
+})
+
 context("Unweighted model with 2 random effects")
 test_that("Agrees with lme4 3,handles missing data", {
   sleepstudyM <- sleepstudyU
@@ -668,8 +698,10 @@ test_that("PISA tests", {
   
   # Multivariate model with random intercept
   m1 <- mix(pv1math ~ st29q03 + sc14q02 + st04q01 + escs + (1|schoolid), data=data, weights=c("w_fstuwt", "w_fschwt"))
-  m1bref <- matrix(c(486.8037, 7.777978, -11.1083, 5.699849,-19.25533, 5.455594,-41.5422, 6.864339, -21.34052, 17.06059, -11.78236, 12.82083, -26.91253, 7.657342, 9.507693, 2.986006, 25.56825, 2.117479), ncol=2, byrow=TRUE)
-  expect_equal(unname(summary(m1)$coef[,1:2]), m1bref,tol=1E-5)
+  m1bref <- matrix(c(486.8037, 7.777978, -11.1083,  5.699849, -19.25533, 5.455594, -41.5422,  6.864339,
+                    -21.34052, 17.06059, -11.78236, 12.82083, -26.91253, 7.657342,  9.507693, 2.986006,
+                     25.56825, 2.117479), ncol=2, byrow=TRUE)
+  expect_equal(unname(summary(m1)$coef[,1:2]), m1bref, tol=1E-5)
   
   #test variance
   m1vref <- c(1413.81, 5264.799)
@@ -690,6 +722,9 @@ test_that("PISA tests", {
   # call should disagree, so remove that
   m1$call <- NULL
   m1c$call <- NULL
+  # the cConstructor disagrees
+  m1$lnlf <- NULL
+  m1c$lnlf <- NULL
   expect_equal(m1, m1c, tol=1e-5)
   #test complicated model
   m2 <- mix(pv1math ~ st29q03 + sc14q02 + st04q01 + escs + (1|schoolid) + (0+escs|schoolid), data=data, weights=c("w_fstuwt", "w_fschwt"))
