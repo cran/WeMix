@@ -122,8 +122,11 @@ ss <- sleepstudy
 ss1 <- ss
 ss2 <- ss
 doubles <- c(308, 309, 310) # subject with double obs
+
 ss2 <- rbind(ss, subset(ss, Subject %in% doubles))
 
+ss$w <- ifelse(ss$Subject %in% doubles, 2, 1)
+contrasts(ss2$Subject) <- "contr.sum"
 ss1$W1 <- ifelse(ss1$Subject %in% doubles, 2, 1)
 ss1$W2 <- 1
 ss1$bin <- ifelse(sleepstudy$Reaction<300,0,1) #for the binomial test
@@ -866,7 +869,7 @@ test_that("Model with top level groups that have entirely 0 columns in Z", {
   gg$w1 <- gg$w1_2p0
   gg$w2 <- 1
   gg$n <- ave(gg$s2_id,gg$s2_id, FUN=length)
-  gg2 <- gg[!is.na(gg$x2rscalk5) & gg$w1>0 & !is.na(gg$p1chldbk) & gg$n > 15 & gg$s2_id < 1200,]
+  gg2 <- gg[!is.na(gg$x2rscalk5) & gg$w1>0 & !is.na(gg$p1chldbk) & gg$n > 15 & gg$s2_id < 1500,]
   m3 <- mix(x2rscalk5 ~ p1chldbk + frpl + (1+frpl|s2_id), data=gg2, weights=c("w1", "w2"), verbose=FALSE)
   # regression tests
   expect_equal(m3$lnl, -1513119.73817376, tol=1e-5)

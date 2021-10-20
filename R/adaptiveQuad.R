@@ -113,6 +113,10 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
     warning(paste0("There were ", sum(complete.cases(data)==FALSE), " rows with missing data. These have been removed."))
     data <- data[complete.cases(data), ]
   }
+  if(length(weights) == 1) {
+    # if the length of weights is 1 then below subsets on weights do not work.
+    stop(paste0("The argument ", sQuote("weights"), " must be a list of column names with length equal to levels."))
+  }
   #this removes any zero weight cases if they exist 
   data[apply(data[ , weights] <= 0, 1, any), weights] <- NA
   if(any(is.na(data[ , weights]))) {

@@ -1,8 +1,17 @@
 \name{NEWS}
 \title{NEWS for WeMix}
 
+\section{Changes in version 3.1.9}{
+  \subsection{IMPROVEMENTS}{
+    \itemize{
+      \item a possible speed up in the solver for linear models uses \code{rbind2} in preference to \code{rbind}
+      \item The error code when a single weight was passed was unclear. Thank you to Zerleen Quader for identifying this issue.
+    }
+  }
+}
+
 \section{Changes in version 3.1.8}{
-  \subsection{BUG FIXEX}{
+  \subsection{BUG FIXES}{
     \itemize{
       \item \code{mix} now works with factor outcomes in a binomial model.
       \item \code{mix} now works with factor IDs.
