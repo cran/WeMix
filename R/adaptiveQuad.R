@@ -74,6 +74,7 @@
 #' \item{cov_mat}{the variance-covariance matrix of the fixed effects.}
 #' \item{var_theta}{the variance covariance matrix of the theta terms.}
 #' \item{wgtStats}{statistics regarding weights, by level.}
+#' \item{ranefMat}{list of matrixes; each list element is a matrix of random effects by level with IDs in the rows and random effects in the columns.}
 #' @example \man\examples\mix.R
 #' @author Paul Bailey, Claire Kelley, and Trang Nguyen 
 #' @export
@@ -528,7 +529,6 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
       message("Fitting weighted model.")
     }
     opt <- bobyqa(fn=bsqG, par=theta)
-    
     names(opt$par) <- names(theta)
     
     #opt$par are the theta estimates
@@ -538,6 +538,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
       message("Estimating covariance.")
     }
     bhatq <- bsq(opt$par, robustSE=TRUE) #calculate robust SE
+    uMatList <- makeUMatList(bhatq, Zlist, theta)
     b2 <- function(f, optpar, b, sigma0, inds) {
       function(x) {
         sigma <- x[length(x)]
@@ -565,7 +566,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
       ihes <- -1*getHessian(b2(f=bsq, optpar=opt$par, b=bhatq$b, sigma0=bhatq$sigma, inds=inds),
                                            x=c(opt$par[inds], sigma=bhatq$sigma))
       eihes <- eigen(ihes)
-      if(max(eihes$values)/min(eihes$values) >= 1/((.Machine$double.eps)^0.25)) {
+      if(min(eihes$values) <= 0 || max(eihes$values)/min(eihes$values) >= 1/((.Machine$double.eps)^0.25)) {
         warning("Numerical instability in estimating the standard error of variance terms. Consider the variance term standard errors approximate.")
         ihes <- nearPD(ihes,  posd.tol=400*sqrt(.Machine$double.eps))$mat
       }
@@ -687,7 +688,7 @@ mix <- function(formula, data, weights, cWeights=FALSE, center_group=NULL,
                invHessian=bhatq$cov_mat, ICC=ICC,
                is_adaptive=FALSE, sigma=bhatq$sigma, cov_mat=bhatq$varBetaRobust,
                ngroups=ngroups, varDF=varDF, varVC=varVC,var_theta=var_of_var,
-               wgtStats=ngrpW)
+               wgtStats=ngrpW, ranefMat = uMatList)
     class(res) <- "WeMixResults"
     return(res)
   }
