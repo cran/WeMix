@@ -1,4 +1,4 @@
-b830507cef2d11cd34371a1996bd1cfe *DESCRIPTION
+433c09c4d015a822d1ac3037f87a6fc2 *DESCRIPTION
 79003ab6c4105b529a58b2b37778a9b7 *NAMESPACE
 8712e33c572c7e9dc845a8f68814804a *R/adaptiveQuad.R
 856c2e168ab1bda3e58c1f3f7a3e04ee *R/analyticSolve.R
@@ -12,14 +12,17 @@ ae28cfe1a06218d4b4160e43004b116f *build/vignette.rds
 69d35c031cff17f60618688b38840fa8 *inst/NEWS.Rd
 0eb36d617542fc6a0492f296477b9e87 *inst/doc/Introduction_to_Mixed_Effects_Models_With_WeMix.R
 89d4ec868436d0940e8eba268722ebe7 *inst/doc/Introduction_to_Mixed_Effects_Models_With_WeMix.Rmd
-acc3147e1b712813f87a8ed90cd0a588 *inst/doc/Introduction_to_Mixed_Effects_Models_With_WeMix.pdf
+484b73e731c4fb113502144ed67b4b67 *inst/doc/Introduction_to_Mixed_Effects_Models_With_WeMix.pdf
 edc1ccab85bfb40ec0e8c31fe6511efe *inst/doc/Weighted_Linear_Mixed_Effects_Models.Rmd
-d8f6a1b938b0b06f736ad24e993f747c *inst/doc/Weighted_Linear_Mixed_Effects_Models.pdf
+ab623479625eb2f0e52557f439c22ee4 *inst/doc/Weighted_Linear_Mixed_Effects_Models.pdf
 8cceb2bff8fc5f622a4c534792a1cb86 *man/WeMix-package.Rd
 5a7856302549faa149e82dae932d8d99 *man/examples/mix.R
 610a6d106ed4ae6fa215607f050859ad *man/mix.Rd
 ad96eeaa76fe49ccf15c16a8ec438238 *man/waldTest.Rd
-4cba31465a2b75e3ed6a0903b29b3a15 *tests/testthat/test-1-main.R
+8af65b53878ba27f3e31f92811f28434 *tests/testthat/test-1-main.R
+a10b0c8a092197f7cb9df81184b9f216 *tests/testthat/test-2-four-level.R
+1f1285302243e09e1da268eee4dfbcd5 *tests/testthat/test-4-ECLS.R
+89302c125af6c005466e5086295c2535 *tests/testthat/test-5-TIMSS.R
 84b4e295f4d5bfd8ffc6b16a2ad622c0 *tests/testthat_tests.R
 89d4ec868436d0940e8eba268722ebe7 *vignettes/Introduction_to_Mixed_Effects_Models_With_WeMix.Rmd
 edc1ccab85bfb40ec0e8c31fe6511efe *vignettes/Weighted_Linear_Mixed_Effects_Models.Rmd
