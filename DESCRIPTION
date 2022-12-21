@@ -1,6 +1,6 @@
 Package: WeMix
-Version: 3.2.4
-Date: 2022-10-04
+Version: 3.3.0
+Date: 2022-12-20
 Title: Weighted Mixed-Effects Models Using Multilevel Pseudo Maximum
         Likelihood Estimation
 Authors@R: c(person("Emmanuel", "Sikali", role="pdr", email = "Emmanuel.Sikali@ed.gov"),
@@ -22,12 +22,12 @@ Note: This publication was prepared for NCES under Contract No.
         ED-IES-12-D-0002 with American Institutes for Research. Mention
         of trade names, commercial products, or organizations does not
         imply endorsement by the U.S. government.
-RoxygenNote: 7.1.1
+RoxygenNote: 7.2.1
 URL: https://american-institutes-for-research.github.io/WeMix/
 BugReports: https://github.com/American-Institutes-for-Research/WeMix/issues
 Encoding: UTF-8
 NeedsCompilation: no
-Packaged: 2022-10-04 16:08:38 UTC; pbailey
+Packaged: 2022-12-21 15:46:06 UTC; pbailey
 Author: Emmanuel Sikali [pdr],
   Paul Bailey [aut, cre],
   Claire Kelley [aut],
@@ -36,4 +36,4 @@ Author: Emmanuel Sikali [pdr],
   Eric Buehler [ctb],
   Christian Kjeldsen [ctb]
 Repository: CRAN
-Date/Publication: 2022-10-05 13:00:02 UTC
+Date/Publication: 2022-12-21 17:50:07 UTC
