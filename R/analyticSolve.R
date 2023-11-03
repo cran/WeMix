@@ -286,6 +286,7 @@ analyticSolve <- function(y, X, Zlist, Zlevels, weights, weightsC=weights, group
     # used to find columns with no-non-zero elements
     # grab and the random effect vector
     u <- ub[1:ncol(Z)]
+    names(u) <- colnames(Z)
     IMatCols <- ncol(ZiAl[[1]])
     groupsTop <- unique(groupID[ , ncol(groupID)])
     if(lndetLz0u) {
@@ -405,10 +406,10 @@ analyticSolve <- function(y, X, Zlist, Zlevels, weights, weightsC=weights, group
       lli <- lambda_by_level[[li]]
       ni <- nrow(lli)
       bb[[li]] <- lli %*% u[u0 + 1:ni]
+      rownames(bb[[li]]) <- names(u[u0 + 1:ni])
       u0 <- u0 + ni
       vc[li,li] <- 1/(ni) * sum((bb[[li]])^2) # mean already 0
     }
-    
     # the discrepancy ||W12(y-Xb-Zu)||^2 + ||Psi(u)||^2
     discrep <- discf(y, Zt, X, lambda, u, Psi12, W12, b)
     # the R22 matrix, bottom right of the big R, conforms with b
@@ -536,9 +537,10 @@ analyticSolve <- function(y, X, Zlist, Zlevels, weights, weightsC=weights, group
                   lndetLz0=lndetLzg[[giuf]])
         tryCatch(lnli[gi] <- bwi(v=v, verbose=verbose, beta=b, sigma=sigma, robustSE=FALSE)$lnl,
                  error= function(e) {
+                   print(e)
                    lnli[gi] <<- NA
                  })
-        if( abs(lnli2[gi] - lnli[gi]) > 0.001) {
+        if( is.na(lnli[gi]) || abs(lnli2[gi] - lnli[gi]) > 0.001) {
           # sometimes Matrix::qr tries to solve a singular system and fails
           # normally base::qr works in these cases, so use that instead
           bwi <- analyticSolve(y=y[sgi], X[sgi,,drop=FALSE],
@@ -626,9 +628,11 @@ analyticSolve <- function(y, X, Zlist, Zlevels, weights, weightsC=weights, group
       # just beta part of J
       varBetaRobust <- as(cov_mat %*% J[1:length(b), 1:length(b)] %*% cov_mat , "matrix")
       colnames(J) <- rownames(J) <- c(names(b), names(v), "sigma")
+      resid <- y - Matrix::t(Zt) %*% lambda %*% u - X %*% b
       res <- c(res, list(varBetaRobust=varBetaRobust,
                          seBetaRobust=sqrt(diag(varBetaRobust)), iDelta=iDelta,
-                         Jacobian=J))
+                         Jacobian=J,
+                         resid=resid))
     }
     return(res)
   }
@@ -658,7 +662,11 @@ qr_0 <- function(X, allowPermute=FALSE) {
     return(base::qr(X))
   }
   # try to use Matrix
-  qr1 <- Matrix::qr(X)
+  tryCatch(qr1 <- Matrix::qr(X),
+    warning=function(w) {
+      qr1 <<- base::qr(X)
+    }
+  )
   if(allowPermute || inherits(qr1,"qr")) {
     # if allowPermute (allow Matrix::qr to use permutations) or this is a base::qr, just return
     return(qr1)
@@ -694,15 +702,6 @@ qr_qrr <- function(X) {
   }
   # we can use Matrix:qr
   return(Matrix::qrR(qr1, backPermute=FALSE))
-}
-
-# return R from a QR
-qrr_ <- function(QR) {
-  if(inherits(QR, "qr")) {
-    return(base::qr.R(QR))
-  } else {
-    return(Matrix::qrR(QR, backPermute=FALSE))
-  }
 }
 
 # run a chol of AtA and return R

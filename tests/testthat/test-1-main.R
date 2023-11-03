@@ -96,6 +96,10 @@ test_that("Agrees with lme4 3,handles missing data", {
   sleepstudyM <- sleepstudyM[order(runif(nrow(sleepstudyM))), ]
   #introduce a missing value 
   sleepstudyM$Days[3] <- NA
+  sleepstudyM$Subject <- ifelse(sleepstudyM$Subject %in% c("310"),"2",as.character(sleepstudyM$Subject))
+  sleepstudyM$Subject <- ifelse(sleepstudyM$Subject %in% c("309"),"1",as.character(sleepstudyM$Subject))
+  sleepstudyM$Subject <- ifelse(sleepstudyM$Subject %in% c("330"),"3",as.character(sleepstudyM$Subject))
+
   lme2 <- lmer(Reaction ~ Days + (1 | Subject) + (0 + Days | Subject), data=sleepstudyM, REML=FALSE)
   
   # the dropped row should cause a warning
@@ -115,6 +119,15 @@ test_that("Agrees with lme4 3,handles missing data", {
   # not in WeMix output
   attr(lme4ranef, "postVar") <- NULL
   expect_equal(lme4ranef, wm2$ranefMat$Subject, 0.01)
+  
+  expect_equal(predict(lme2), predict(wm2), tol=1e-4)
+  sleepstudyM2 <- sleepstudyM[order(runif(nrow(sleepstudyM))), ]
+  sleepstudyM2$Subject <- ifelse(sleepstudyM2$Subject %in% c("332"),"4",as.character(sleepstudyM$Subject))
+  sleepstudyM2$Subject <- ifelse(sleepstudyM2$Subject %in% c("308"),"1",as.character(sleepstudyM$Subject))
+  sleepstudyM2$Subject <- ifelse(sleepstudyM2$Subject %in% c("351"),"5",as.character(sleepstudyM$Subject))
+
+  expect_equal(predict(lme2,sleepstudyM2, allow.new.levels=TRUE), predict(wm2,sleepstudyM2, allow.new.levels=TRUE), tol=1e-4)
+
 })
 
 context("Mean Centering Matches HLM results")
@@ -265,7 +278,7 @@ test_that("Weighted three level model unsorted", {
   expect_equal(coef(wm0),
                expected = getME(lmr, "fixef"),
                tolerance = tolerance)
-  
+
   lmeRanef <- ranef(lmr)$Subject
   # not in WeMix output
   attr(lmeRanef, "postVar") <- NULL
@@ -355,6 +368,19 @@ test_that("Unweighted three level model", {
   sleepstudy2$w3 <- 1
   wm0 <- mix(Reaction ~ Days + (1|Subject) + (0+Days|Subject) + (1 | Group), data=sleepstudy2, weights=c("w1", "w2","w3"), verbose=FALSE, run=TRUE)
   lm0 <- lmer(Reaction ~ Days + (1|Subject) + (0+Days|Subject) + (1 | Group), data=sleepstudy2,REML=FALSE)
+  wm0RE <- wm0$ranefMat
+  lm0RE <- ranef(lm0)
+  expect_equal(names(wm0RE), names(lm0RE))
+  attr(lm0RE$Subject, "postVar") <- NULL
+  expect_equal(wm0RE$Subject, lm0RE$Subject, tol=.Machine$double.eps^0.25)
+  attr(lm0RE$Group, "postVar") <- NULL
+  expect_equal(wm0RE$Group, lm0RE$Group, tol=.Machine$double.eps^0.25)
+
+  wm0RE <- wm0$ranefMat
+  lm0RE <- ranef(lm0)
+  attr(lm0RE$Subject, "postVar") <- NULL
+  expect_equal(wm0RE$Subject, lm0RE$Subject, tol=.Machine$double.eps^0.25)
+  
   # check vars
   lmevars1 <- data.frame(summary(lm0)$varcor)$sdcor
   expect_equal(unname(wm0$vars),
@@ -385,6 +411,7 @@ test_that("Unweighted three level model, binomial", {
   sleepstudy2$w1 <- 1 
   sleepstudy2$w2 <- 1
   sleepstudy2$w3 <- 1
+  sleepstudy2 <- sleepstudy2[sample(1:nrow(sleepstudy2), nrow(sleepstudy2)),]
   # up the max_iterations for more complex model structure
   suppressWarnings(wm0 <- mix(highR ~ Days + (rand_slope|Subject) + (1 | Group), data=sleepstudy2,
              family=binomial(),weights=c("w1", "w2","w3"), verbose=FALSE, run=TRUE,
@@ -398,7 +425,13 @@ test_that("Unweighted three level model, binomial", {
                tolerance = 1e-3)
   expect_equal(as.numeric(wm0$lnl), as.numeric(logLik(lm0)), tol=1e-3)
   expect_equal(coef(wm0), fixef(lm0), tol=1e-4)
-
+  expect_equal(predict(wm0), predict(lm0), tol=1e-4)
+  expect_equal(predict(wm0, sleepstudy2), predict(lm0, sleepstudy2), tol=1e-4)
+  sleepstudy3 <- sleepstudy2[sample(1:nrow(sleepstudy2), floor(nrow(sleepstudy2)/4)),]
+  expect_equal(a1 <- predict(wm0, sleepstudy3), b1 <- predict(lm0, sleepstudy3), tol=1e-4)
+  sleepstudy4 <- sleepstudy2
+  sleepstudy4$Subject <- ifelse(sleepstudy4$Subject == "332", "1", as.character(sleepstudy4$Subject))
+  expect_equal(a2 <- predict(wm0, sleepstudy4, allow.new.levels=TRUE), b2 <- predict(lm0, sleepstudy4, allow.new.levels=TRUE), tol=1e-4)
 })
 
 
@@ -503,6 +536,7 @@ test_that("Weighted v unweighted replicated three level model", {
   s308$Group <- 5
   s308$Subject <- "5R308"
   sleepstudyrep <- rbind(sleepstudyrep, s308)
+  sleepstudy2$w1u <- ifelse(sleepstudy2$Group == 1, 2, 1)
   s308unit <- subset(sleepstudyrep, Subject %in% c("308", "5308", "R308", "5R308") & Days %in% c(0,3))
   sleepstudyrep <- rbind(sleepstudyrep, s308unit)
   
@@ -799,6 +833,7 @@ test_that("Weighted v unweighted replicated two level model, poisson", {
 context("Quadrature works, 3 RE at level 2")
 test_that("Quadrature works, 3 RE at level 2", {
   skip_on_cran()
+  skip_if_not_installed("glmmTMB")
   require(glmmTMB)
   owls2 <- Owls
   owls2$w1 <- 1 
